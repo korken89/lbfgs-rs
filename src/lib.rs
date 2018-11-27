@@ -116,16 +116,18 @@ impl Estimator {
         assert!(gradient.len() == self.old_state.len());
         assert!(state.len() == self.old_state.len());
 
-        // Form the new s_k and save the state
+        // Form the new s_k
         vec_ops::difference_and_save(&mut self.s.last_mut().unwrap(), &state, &self.old_state);
-        self.old_state.copy_from_slice(state);
 
-        // Form the new y_k and save the gradient
+        // Form the new y_k
         vec_ops::difference_and_save(
             &mut self.y.last_mut().unwrap(),
             &gradient,
             &self.old_gradient,
         );
+
+        // TODO: Check if these should be inside the if statement
+        self.old_state.copy_from_slice(state);
         self.old_gradient.copy_from_slice(gradient);
 
         // Check that the s and y are valid to use
