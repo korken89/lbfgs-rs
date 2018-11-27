@@ -61,9 +61,36 @@ impl Estimator {
             // No Hessian available, only make it go towards minima
             vec_ops::scalar_mult(gradient, -1.0);
         } else {
+            // Store q
             self.q.copy_from_slice(gradient);
 
-            // TODO: Perform the forward / backward L-BFGS algorithm
+            // TODO: Perform the forward L-BFGS algorithm
+
+            let active_s = &self.s[0..self.active_size];
+            let active_y = &self.y[0..self.active_size];
+            let rho = &mut self.rho;
+            let alpha = &mut self.alpha;
+            let q = &mut self.q;
+
+            println!("active_s: {:?}, active_y: {:?}", &active_s, &active_y);
+
+            active_s
+                .iter()
+                .zip(active_y.iter())
+                .enumerate()
+                .for_each(|(idx, (a_s, a_y))| {
+                    let r = 1.0 / vec_ops::inner_product(a_s, a_y);
+                    let a = r * vec_ops::inner_product(a_s, q);
+                    rho[idx] = r;
+                    alpha[idx] = a;
+
+                    vec_ops::inplace_vec_sub(q, a_y, a);
+                });
+
+            println!("rho: {:?}", rho);
+            println!("alpha: {:?}", alpha);
+
+            // TODO: Perform the backward L-BFGS algorithm
         }
     }
 
@@ -152,8 +179,10 @@ mod tests {
         println!();
         println!("LBFGS instance: {:?}", e);
         e.update_hessian(&vec![1.0, 1.0], &vec![1.0, 1.0]);
+        e.apply_hessian(&mut vec![1.0, 1.0]);
         println!("LBFGS instance: {:?}", e);
         e.update_hessian(&vec![3.0, 3.0], &vec![3.0, 3.0]);
+        e.apply_hessian(&mut vec![1.0, 1.0]);
         println!("LBFGS instance: {:?}", e);
         e.update_hessian(&vec![6.0, 6.0], &vec![6.0, 6.0]);
         println!("LBFGS instance: {:?}", e);

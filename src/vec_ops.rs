@@ -91,6 +91,19 @@ where
     a.iter_mut().for_each(|out| *out = s * (*out));
 }
 
+/// Calculates out = out - s * a
+#[inline(always)]
+pub fn inplace_vec_sub<T>(out: &mut [T], a: &[T], s: T)
+where
+    T: Float,
+{
+    assert!(out.len() == a.len());
+
+    out.iter_mut()
+        .zip(a.iter())
+        .for_each(|(out, a)| *out = (*out) - s * (*a));
+}
+
 #[cfg(test)]
 mod tests {
     use crate::*;
@@ -131,6 +144,13 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn inplace_vec_sub_panic() {
+        let mut out = vec![0.0, 0.0];
+        vec_ops::inplace_vec_sub(&mut out, &vec![1.0], 1.0);
+    }
+
+    #[test]
     fn norm1_test() {
         assert_eq!(vec_ops::norm1(&vec![1.0, -2.0, -3.0]), 6.0);
     }
@@ -166,9 +186,21 @@ mod tests {
         let mut out = vec![1.0, 1.0];
         let out_result = vec![2.0, 2.0];
         let out_result2 = vec![4.0, 4.0];
+
         vec_ops::scalar_mult(&mut out, 2.0);
         assert_eq!(out, out_result);
+
         vec_ops::scalar_mult(&mut out, 2.0);
         assert_eq!(out, out_result2);
+    }
+
+    #[test]
+    fn inplace_vec_sub_test() {
+        let mut out = vec![1.0, 1.0];
+        let input = vec![1.0, 1.0];
+        let out_result = vec![-1.0, -1.0];
+        vec_ops::inplace_vec_sub(&mut out, &input, 2.0);
+
+        assert_eq!(out, out_result);
     }
 }
