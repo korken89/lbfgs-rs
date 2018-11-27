@@ -68,8 +68,8 @@ impl Estimator {
     }
 
     /// Check the validity of the newly added s and y vectors. Based on the condition in:
-    /// "D.-H. Li and M. Fukushima, “On the global convergence of the BFGS method for nonconvex
-    /// unconstrained optimization problems,” vol. 11, no. 4, pp. 1054–1064, jan 2001.
+    /// D.-H. Li and M. Fukushima, "On the global convergence of the BFGS method for nonconvex
+    /// unconstrained optimization problems," vol. 11, no. 4, pp. 1054–1064, jan 2001.
     fn new_s_and_y_valid(&self, gradient: &[f64]) -> bool {
         // TODO: Check if EPSILON should be changed
         const EPSILON: f64 = 1e-12;
