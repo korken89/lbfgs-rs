@@ -1,14 +1,14 @@
 # `L-BFGS` [![Build Status](https://travis-ci.org/korken89/lbfgs-rs.svg?branch=master)](https://travis-ci.org/korken89/lbfgs-rs)
 
-> `L-BFGS` ([Low-memory Broyden–Fletcher–Goldfarb–Shanno](https://en.wikipedia.org/wiki/Limited-memory_BFGS)) is a library for doing
-> estimation and application of Hessians in numerical optimization while using
-> limited memory and never explicitly creating the Hessian. Only simple vector
-> operation are used, as specified by the L-BFGS algorithm.
->
-> Moreover, the condition for the Caution-BFGS (C-BFGS) algorithm, specified in
-> D.-H. Li and M. Fukushima, "On the global convergence of the BFGS method for
-> nonconvex unconstrained optimization problems," vol. 11, no. 4, pp. 1054–1064, jan 2001,
-> is used to check the updates of the L-BFGS.
+`L-BFGS` ([Low-memory Broyden–Fletcher–Goldfarb–Shanno](https://en.wikipedia.org/wiki/Limited-memory_BFGS)) is a library for doing
+estimation and application of Hessians in numerical optimization while using
+limited memory and never explicitly creating the Hessian. Only simple vector
+operation are used, as specified by the L-BFGS algorithm.
+
+Moreover, the condition for the Caution-BFGS (C-BFGS) algorithm, specified in
+D.-H. Li and M. Fukushima, "On the global convergence of the BFGS method for
+nonconvex unconstrained optimization problems," vol. 11, no. 4, pp. 1054–1064, jan 2001,
+is used to check the updates of the L-BFGS.
 
 Active WIP.
 
