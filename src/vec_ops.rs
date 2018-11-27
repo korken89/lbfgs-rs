@@ -40,7 +40,7 @@ where
     a.iter().map(|x| x.abs()).sum()
 }
 
-/// Calculate the squared 2-norm of a slices
+/// Calculate the squared 2-norm of a slice
 #[inline(always)]
 pub fn norm2_sq<T>(a: &[T]) -> T
 where
@@ -49,7 +49,7 @@ where
     inner_product(a, a)
 }
 
-/// Calculate the 2-norm of a slices
+/// Calculate the 2-norm of a slice
 #[inline(always)]
 pub fn norm2<T>(a: &[T]) -> T
 where
@@ -58,7 +58,7 @@ where
     norm2_sq(a).sqrt()
 }
 
-/// Calculate the infinity-norm of a slices
+/// Calculate the infinity-norm of a slice
 #[inline(always)]
 pub fn norm_inf<T>(a: &[T]) -> T
 where
