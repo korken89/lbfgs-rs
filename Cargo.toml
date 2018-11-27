@@ -1,0 +1,13 @@
+[package]
+authors = ["Emil Fresk <emil.fresk@gmail.com>"]
+categories = ["embedded", "nonlinear", "optimization"]
+keywords = ["embedded", "optimization", "bfgs", "lbfgs"]
+description = "A Rust implementation of the L-BFGS algorithm"
+documentation = "https://docs.rs/lbfgs"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+name = "lbfgs-rs"
+version = "0.1.0"
+
+[dependencies]
+num = "0.2.0"
