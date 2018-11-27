@@ -67,14 +67,20 @@ impl Estimator {
         }
     }
 
+    /// Check the validity of the newly added s and y vectors. Based on the condition in:
+    /// "D.-H. Li and M. Fukushima, “On the global convergence of the BFGS method for nonconvex
+    /// unconstrained optimization problems,” vol. 11, no. 4, pp. 1054–1064, jan 2001.
     fn new_s_and_y_valid(&self, gradient: &[f64]) -> bool {
+        // TODO: Check if EPSILON should be changed
         const EPSILON: f64 = 1e-12;
 
-        let sy = vec_ops::inner_product(&self.s[0], &self.y[0])
-            / vec_ops::inner_product(&self.y[0], &self.y[0]);
+        let sy = vec_ops::inner_product(&self.s.last().unwrap(), &self.y.last().unwrap())
+            / vec_ops::inner_product(&self.y.last().unwrap(), &self.y.last().unwrap());
+
+        let ep = EPSILON * vec_ops::norm2(gradient);
 
         // Condition: (y^T * s)/||s||^2 > epsilon * ||grad(x)||
-        sy > EPSILON * vec_ops::norm2_sq(gradient)
+        sy > ep
     }
 
     pub fn update_hessian(&mut self, gradient: &mut [f64], state: &[f64]) {
