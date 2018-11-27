@@ -1,4 +1,4 @@
-# `L-BFGS`
+# `L-BFGS` [![Build Status](https://travis-ci.org/korken89/lbfgs-rs.svg?branch=master)](https://travis-ci.org/korken89/lbfgs-rs)
 
 > `L-BFGS` ([Low-memory Broyden–Fletcher–Goldfarb–Shanno](https://en.wikipedia.org/wiki/Limited-memory_BFGS)) is a library for doing
 > estimation and application of Hessians in numerical optimization while using
