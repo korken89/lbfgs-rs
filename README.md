@@ -4,6 +4,11 @@
 > estimation and application of Hessians in numerical optimization while using
 > limited memory and never explicitly creating the Hessian. Only simple vector
 > operation are used, as specified by the L-BFGS algorithm.
+>
+> Moreover, the condition for the Caution-BFGS (C-BFGS) algorithm, specified in
+> D.-H. Li and M. Fukushima, "On the global convergence of the BFGS method for
+> nonconvex unconstrained optimization problems," vol. 11, no. 4, pp. 1054–1064, jan 2001,
+> is used to check the updates of the L-BFGS.
 
 Active WIP.
 
