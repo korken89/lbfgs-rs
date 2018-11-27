@@ -64,8 +64,6 @@ impl Estimator {
             // Store q
             self.q.copy_from_slice(gradient);
 
-            // TODO: Perform the forward L-BFGS algorithm
-
             let active_s = &self.s[0..self.active_size];
             let active_y = &self.y[0..self.active_size];
             let rho = &mut self.rho;
@@ -74,6 +72,7 @@ impl Estimator {
 
             println!("active_s: {:?}, active_y: {:?}", &active_s, &active_y);
 
+            // Perform the forward L-BFGS algorithm
             active_s
                 .iter()
                 .zip(active_y.iter())
@@ -81,6 +80,7 @@ impl Estimator {
                 .for_each(|(idx, (a_s, a_y))| {
                     let r = 1.0 / vec_ops::inner_product(a_s, a_y);
                     let a = r * vec_ops::inner_product(a_s, q);
+
                     rho[idx] = r;
                     alpha[idx] = a;
 
