@@ -79,9 +79,8 @@ impl Estimator {
                 .enumerate()
                 .for_each(|(idx, (a_s, a_y))| {
                     let r = 1.0 / vec_ops::inner_product(a_s, a_y);
-                    let ip = vec_ops::inner_product(a_s, q);
-                    let a = r * ip;
-                    println!("r: {}, ip: {}, a: {}", r, ip, a);
+                    let a = r * vec_ops::inner_product(a_s, q);
+                    println!("r: {}, a: {}, a_s: {:?}, q: {:?}", r, a, a_s, q);
 
                     rho[idx] = r;
                     alpha[idx] = a;
@@ -181,22 +180,22 @@ mod tests {
         println!();
         println!("LBFGS instance: {:?}", e);
         e.update_hessian(&vec![1.0, 1.0], &vec![1.0, 1.0]);
+        e.apply_hessian(&mut vec![-1.0, 1.0]);
+
+        println!();
+        println!("LBFGS instance: {:?}", e);
+        e.update_hessian(&vec![3.0, 2.0], &vec![2.0, 3.0]);
         e.apply_hessian(&mut vec![2.0, 1.0]);
 
         println!();
         println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&vec![3.0, 3.0], &vec![3.0, 3.0]);
-        e.apply_hessian(&mut vec![-2.0, 1.0]);
+        e.update_hessian(&vec![5.0, 6.0], &vec![6.0, 5.0]);
+        e.apply_hessian(&mut vec![3.0, 1.0]);
 
         println!();
         println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&vec![6.0, 6.0], &vec![6.0, 6.0]);
-        e.apply_hessian(&mut vec![2.0, 1.0]);
-
-        println!();
-        println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&vec![10.0, 10.0], &vec![10.0, 10.0]);
-        e.apply_hessian(&mut vec![-2.0, 1.0]);
+        e.update_hessian(&vec![9.0, 10.0], &vec![10.0, 9.0]);
+        e.apply_hessian(&mut vec![4.0, 1.0]);
 
         println!("LBFGS instance: {:?}", e);
         println!();
