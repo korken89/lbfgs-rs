@@ -77,13 +77,14 @@ impl Estimator {
         let sy = vec_ops::inner_product(&self.s.last().unwrap(), &self.y.last().unwrap())
             / vec_ops::inner_product(&self.y.last().unwrap(), &self.y.last().unwrap());
 
+        // TODO: Check the alpha power to be used
         let ep = EPSILON * vec_ops::norm2(gradient);
 
-        // Condition: (y^T * s)/||s||^2 > epsilon * ||grad(x)||
+        // Condition: (y^T * s) / ||s||^2 > epsilon * ||grad(x)||^alpha
         sy > ep && sy.is_finite() && ep.is_finite()
     }
 
-    pub fn update_hessian(&mut self, gradient: &mut [f64], state: &[f64]) {
+    pub fn update_hessian(&mut self, gradient: &[f64], state: &[f64]) {
         assert!(gradient.len() == self.old_state.len());
         assert!(state.len() == self.old_state.len());
 
@@ -100,7 +101,7 @@ impl Estimator {
         self.old_gradient.copy_from_slice(gradient);
 
         // Check that the s and y are valid to use
-        if self.new_s_and_y_valid(gradient) == true {
+        if self.new_s_and_y_valid(gradient) {
             // Move the new s_0 and y_0 to the front
             self.s.rotate_right(1);
             self.y.rotate_right(1);
@@ -135,27 +136,28 @@ mod tests {
     #[should_panic]
     fn lbfgs_panic_apply_size_grad() {
         let mut e = Estimator::new(5, 5);
-        e.update_hessian(&mut vec![0.0; 4], &vec![0.0; 5]);
+        e.update_hessian(&vec![0.0; 4], &vec![0.0; 5]);
     }
 
     #[test]
     #[should_panic]
     fn lbfgs_panic_apply_state() {
         let mut e = Estimator::new(5, 5);
-        e.update_hessian(&mut vec![0.0; 5], &vec![0.0; 4]);
+        e.update_hessian(&vec![0.0; 5], &vec![0.0; 4]);
     }
 
     #[test]
     fn lbfgs_test() {
         let mut e = Estimator::new(2, 3);
+        println!();
         println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&mut vec![1.0, 1.0], &vec![1.0, 1.0]);
+        e.update_hessian(&vec![1.0, 1.0], &vec![1.0, 1.0]);
         println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&mut vec![3.0, 3.0], &vec![3.0, 3.0]);
+        e.update_hessian(&vec![3.0, 3.0], &vec![3.0, 3.0]);
         println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&mut vec![6.0, 6.0], &vec![6.0, 6.0]);
+        e.update_hessian(&vec![6.0, 6.0], &vec![6.0, 6.0]);
         println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&mut vec![10.0, 10.0], &vec![10.0, 10.0]);
+        e.update_hessian(&vec![10.0, 10.0], &vec![10.0, 10.0]);
         println!("LBFGS instance: {:?}", e);
     }
 }
