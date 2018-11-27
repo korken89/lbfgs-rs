@@ -80,7 +80,7 @@ impl Estimator {
         let ep = EPSILON * vec_ops::norm2(gradient);
 
         // Condition: (y^T * s)/||s||^2 > epsilon * ||grad(x)||
-        sy > ep
+        sy > ep && sy.is_finite() && ep.is_finite()
     }
 
     pub fn update_hessian(&mut self, gradient: &mut [f64], state: &[f64]) {
