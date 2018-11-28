@@ -61,7 +61,7 @@ impl Estimator {
         }
     }
 
-    // Apply the current Hessian estimate to a gradient
+    /// Apply the current Hessian estimate to a gradient
     pub fn apply_hessian(&mut self, gradient: &mut [f64]) {
         assert!(gradient.len() == self.old_gradient.len());
 
@@ -130,6 +130,7 @@ impl Estimator {
         sy > ep && sy.is_finite() && ep.is_finite()
     }
 
+    /// Saves vectors to update the Hessian estimate
     pub fn update_hessian(&mut self, gradient: &[f64], state: &[f64]) -> UpdateStatus {
         assert!(gradient.len() == self.old_state.len());
         assert!(state.len() == self.old_state.len());
