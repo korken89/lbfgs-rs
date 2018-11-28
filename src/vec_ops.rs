@@ -91,9 +91,9 @@ where
     a.iter_mut().for_each(|out| *out = s * (*out));
 }
 
-/// Calculates out = out - s * a
+/// Calculates out = out + s * a
 #[inline(always)]
-pub fn inplace_vec_sub<T>(out: &mut [T], a: &[T], s: T)
+pub fn inplace_vec_add<T>(out: &mut [T], a: &[T], s: T)
 where
     T: Float,
 {
@@ -101,7 +101,7 @@ where
 
     out.iter_mut()
         .zip(a.iter())
-        .for_each(|(out, a)| *out = (*out) - s * (*a));
+        .for_each(|(out, a)| *out = (*out) + s * (*a));
 }
 
 #[cfg(test)]
@@ -145,9 +145,9 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn inplace_vec_sub_panic() {
+    fn inplace_vec_add_panic() {
         let mut out = vec![0.0, 0.0];
-        vec_ops::inplace_vec_sub(&mut out, &vec![1.0], 1.0);
+        vec_ops::inplace_vec_add(&mut out, &vec![1.0], 1.0);
     }
 
     #[test]
@@ -195,11 +195,11 @@ mod tests {
     }
 
     #[test]
-    fn inplace_vec_sub_test() {
+    fn inplace_vec_add_test() {
         let mut out = vec![1.0, 1.0];
         let input = vec![1.0, 1.0];
-        let out_result = vec![-1.0, -1.0];
-        vec_ops::inplace_vec_sub(&mut out, &input, 2.0);
+        let out_result = vec![3.0, 3.0];
+        vec_ops::inplace_vec_add(&mut out, &input, 2.0);
 
         assert_eq!(out, out_result);
     }

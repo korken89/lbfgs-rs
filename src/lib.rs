@@ -32,9 +32,17 @@ pub struct Estimator {
     y: Vec<Vec<f64>>,
     alpha: Vec<f64>,
     rho: Vec<f64>, // Only needed inside apply
-    q: Vec<f64>,
+    //q: Vec<f64>,
     old_state: Vec<f64>,
     old_gradient: Vec<f64>,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum UpdateStatus {
+    /// The gradient and state was accepted to update the Hessian estimate
+    UpdateOk,
+    /// The gradient and state was rejected by the C-BFGS criteria
+    CBFGSRejection,
 }
 
 impl Estimator {
@@ -45,11 +53,11 @@ impl Estimator {
         Estimator {
             active_size: 0,
             gamma: 1.0,
-            s: vec![vec![0.0; problem_size]; buffer_size + 1],
-            y: vec![vec![0.0; problem_size]; buffer_size + 1],
+            s: vec![vec![1.0; problem_size]; buffer_size + 1], // +1 for the temporary checking area
+            y: vec![vec![0.0; problem_size]; buffer_size + 1], // +1 for the temporary checking area
             alpha: vec![0.0; buffer_size],
             rho: vec![0.0; buffer_size],
-            q: vec![0.0; problem_size],
+            //q: vec![0.0; problem_size],
             old_state: vec![0.0; problem_size],
             old_gradient: vec![0.0; problem_size],
         }
@@ -59,18 +67,19 @@ impl Estimator {
     pub fn apply_hessian(&mut self, gradient: &mut [f64]) {
         if self.active_size == 0 {
             // No Hessian available, only make it go towards minima
-            vec_ops::scalar_mult(gradient, -1.0);
+            // vec_ops::scalar_mult(gradient, -1.0);
         } else {
             // Store q
-            self.q.copy_from_slice(gradient);
+            // self.q.copy_from_slice(gradient);
 
             let active_s = &self.s[0..self.active_size];
             let active_y = &self.y[0..self.active_size];
             let rho = &mut self.rho;
             let alpha = &mut self.alpha;
-            let q = &mut self.q;
 
-            println!("active_s: {:?}, active_y: {:?}", &active_s, &active_y);
+            let q = gradient; //&mut self.q;
+
+            //println!("active_s: {:?}, active_y: {:?}", &active_s, &active_y);
 
             // Perform the forward L-BFGS algorithm
             active_s
@@ -80,18 +89,37 @@ impl Estimator {
                 .for_each(|(idx, (a_s, a_y))| {
                     let r = 1.0 / vec_ops::inner_product(a_s, a_y);
                     let a = r * vec_ops::inner_product(a_s, q);
-                    println!("r: {}, a: {}, a_s: {:?}, q: {:?}", r, a, a_s, q);
+                    //println!("r: {}, a: {}, a_s: {:?}, q: {:?}", r, a, a_s, q);
 
                     rho[idx] = r;
                     alpha[idx] = a;
 
-                    vec_ops::inplace_vec_sub(q, a_y, a);
+                    vec_ops::inplace_vec_add(q, a_y, -a);
                 });
 
-            println!("rho: {:?}", rho);
-            println!("alpha: {:?}", alpha);
+            //println!("rho: {:?}", rho);
+            //println!("alpha: {:?}", alpha);
 
-            // TODO: Perform the backward L-BFGS algorithm
+            // Apply the initial Hessian estimate and form r = H_0 * q, where H_0 = gamma
+            vec_ops::scalar_mult(q, self.gamma);
+            let r = q;
+
+            // Perform the backward L-BFGS algorithm
+            active_s
+                .iter()
+                .rev()
+                .zip(active_y.iter().rev())
+                .enumerate()
+                .rev()
+                .for_each(|(idx, (a_s, a_y))| {
+                    let beta = rho[idx] * vec_ops::inner_product(a_y, r);
+                    vec_ops::inplace_vec_add(r, a_s, alpha[idx] - beta);
+
+                    //println!("beta: {}, a_s: {:?}, a_y: {:?}, r: {:?}", beta, a_s, a_y, r);
+                });
+
+            // The gradient with the Hessian applied is available in the input gradient
+            // r = H_k * grad f
         }
     }
 
@@ -112,14 +140,14 @@ impl Estimator {
         sy > ep && sy.is_finite() && ep.is_finite()
     }
 
-    pub fn update_hessian(&mut self, gradient: &[f64], state: &[f64]) {
+    pub fn update_hessian(&mut self, gradient: &[f64], state: &[f64]) -> UpdateStatus {
         assert!(gradient.len() == self.old_state.len());
         assert!(state.len() == self.old_state.len());
 
-        // Form the new s_k
+        // Form the new s_k in the temporary area
         vec_ops::difference_and_save(&mut self.s.last_mut().unwrap(), &state, &self.old_state);
 
-        // Form the new y_k
+        // Form the new y_k in the temporary area
         vec_ops::difference_and_save(
             &mut self.y.last_mut().unwrap(),
             &gradient,
@@ -141,8 +169,12 @@ impl Estimator {
                 / vec_ops::inner_product(&self.y[0], &self.y[0]);
 
             // Update the indexes and number of active, -1 comes from the temporary area used in
-            // s and y to check if they are valid
+            // the end of s and y to check if they are valid
             self.active_size = (self.s.len() - 1).min(self.active_size + 1);
+
+            UpdateStatus::UpdateOk
+        } else {
+            UpdateStatus::CBFGSRejection
         }
     }
 }
@@ -199,6 +231,11 @@ mod tests {
         println!("LBFGS instance: {:?}", e);
         e.update_hessian(&vec![9.0, 10.0], &vec![10.0, 9.0]);
         e.apply_hessian(&mut vec![4.0, 1.0]);
+
+        println!();
+        println!("LBFGS instance: {:?}", e);
+        e.update_hessian(&vec![5.0, 6.0], &vec![6.0, 5.0]);
+        e.apply_hessian(&mut vec![3.0, 1.0]);
 
         println!("LBFGS instance: {:?}", e);
         println!();
