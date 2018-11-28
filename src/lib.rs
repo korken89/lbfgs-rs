@@ -90,7 +90,7 @@ impl Estimator {
                     vec_ops::inplace_vec_add(q, a_y, -a);
                 });
 
-            // Apply the initial Hessian estimate and form r = H_0 * q, where H_0 = gamma
+            // Apply the initial Hessian estimate and form r = H_0 * q, where H_0 = gamma * I
             vec_ops::scalar_mult(q, self.gamma);
             let r = q;
 
