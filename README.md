@@ -9,8 +9,8 @@ The specific L-BFGS algorithm implemented here can be found in
 [Algorithm 9.1 (L-BFGS two-loop recursion)](http://www.bioinfo.org.cn/~wangchao/maa/Numerical_Optimization.pdf).
 
 Moreover, the condition for the Cautious-BFGS (C-BFGS) algorithm, specified in
-D.-H. Li and M. Fukushima, "On the global convergence of the BFGS method for
-nonconvex unconstrained optimization problems," vol. 11, no. 4, pp. 1054–1064, jan 2001,
+[D.-H. Li and M. Fukushima, "On the global convergence of the BFGS method for
+nonconvex unconstrained optimization problems"](https://pdfs.semanticscholar.org/5b90/45b7d27a53b1e3c3b3f0dc6aab908cc3e0b2.pdf),
 is used to check the updates of the L-BFGS.
 
 Active WIP.
