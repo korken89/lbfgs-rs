@@ -45,8 +45,8 @@ impl Estimator {
         Estimator {
             active_size: 0,
             gamma: 1.0,
-            s: vec![vec![0.0; problem_size]; buffer_size],
-            y: vec![vec![0.0; problem_size]; buffer_size],
+            s: vec![vec![0.0; problem_size]; buffer_size + 1],
+            y: vec![vec![0.0; problem_size]; buffer_size + 1],
             alpha: vec![0.0; buffer_size],
             rho: vec![0.0; buffer_size],
             q: vec![0.0; problem_size],
@@ -140,8 +140,9 @@ impl Estimator {
             self.gamma = vec_ops::inner_product(&self.s[0], &self.y[0])
                 / vec_ops::inner_product(&self.y[0], &self.y[0]);
 
-            // Update the indexes and number of active
-            self.active_size = self.s.len().min(self.active_size + 1);
+            // Update the indexes and number of active, -1 comes from the temporary area used in
+            // s and y to check if they are valid
+            self.active_size = (self.s.len() - 1).min(self.active_size + 1);
         }
     }
 }
