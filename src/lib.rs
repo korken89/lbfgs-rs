@@ -44,7 +44,7 @@ impl Estimator {
 
         Estimator {
             active_size: 0,
-            gamma: 0.0,
+            gamma: 1.0,
             s: vec![vec![0.0; problem_size]; buffer_size],
             y: vec![vec![0.0; problem_size]; buffer_size],
             alpha: vec![0.0; buffer_size],
