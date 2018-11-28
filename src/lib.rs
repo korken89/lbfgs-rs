@@ -63,6 +63,8 @@ impl Estimator {
 
     // Apply the current Hessian estimate to a gradient
     pub fn apply_hessian(&mut self, gradient: &mut [f64]) {
+        assert!(gradient.len() == self.old_gradient.len());
+
         if self.active_size == 0 {
             // No Hessian available, the gradient is the best we can do for now
         } else {
