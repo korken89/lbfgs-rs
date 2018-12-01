@@ -28,19 +28,20 @@ pub struct Estimator {
     gamma: f64,
     /// s holds the vectors of state difference s_k = x_{k+1} - x_k, s_0 holds the most recent s
     s: Vec<Vec<f64>>,
-    /// y holds the vectors of gradient difference y_k = df(x_{k+1}) - df(x_k), y_0 holds the most recent y
+    /// y holds the vectors of the function g (usually const function gradient) difference:
+    /// y_k = g_{k+1} - df_k, y_0 holds the most recent y
     y: Vec<Vec<f64>>,
     alpha: Vec<f64>,
     rho: Vec<f64>,
     old_state: Vec<f64>,
-    old_gradient: Vec<f64>,
+    old_g: Vec<f64>,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum UpdateStatus {
-    /// The gradient and state was accepted to update the Hessian estimate
+    /// The g and state was accepted to update the Hessian estimate
     UpdateOk,
-    /// The gradient and state was rejected by the C-BFGS criteria
+    /// The g and state was rejected by the C-BFGS criteria
     CBFGSRejection,
 }
 
@@ -57,23 +58,23 @@ impl Estimator {
             alpha: vec![0.0; buffer_size],
             rho: vec![0.0; buffer_size],
             old_state: vec![0.0; problem_size],
-            old_gradient: vec![0.0; problem_size],
+            old_g: vec![0.0; problem_size],
         }
     }
 
-    /// Apply the current Hessian estimate to a gradient
-    pub fn apply_hessian(&mut self, gradient: &mut [f64]) {
-        assert!(gradient.len() == self.old_gradient.len());
+    /// Apply the current Hessian estimate to an input vector
+    pub fn apply_hessian(&mut self, g: &mut [f64]) {
+        assert!(g.len() == self.old_g.len());
 
         if self.active_size == 0 {
-            // No Hessian available, the gradient is the best we can do for now
+            // No Hessian available, the g is the best we can do for now
         } else {
             let active_s = &self.s[0..self.active_size];
             let active_y = &self.y[0..self.active_size];
             let rho = &mut self.rho;
             let alpha = &mut self.alpha;
 
-            let q = gradient;
+            let q = g;
 
             // Perform the forward L-BFGS algorithm
             active_s
@@ -106,7 +107,7 @@ impl Estimator {
                     vec_ops::inplace_vec_add(r, a_s, alpha[idx] - beta);
                 });
 
-            // The gradient with the Hessian applied is available in the input gradient
+            // The g with the Hessian applied is available in the input g
             // r = H_k * grad f
         }
     }
@@ -114,7 +115,7 @@ impl Estimator {
     /// Check the validity of the newly added s and y vectors. Based on the condition in:
     /// D.-H. Li and M. Fukushima, "On the global convergence of the BFGS method for nonconvex
     /// unconstrained optimization problems," vol. 11, no. 4, pp. 1054–1064, jan 2001.
-    fn new_s_and_y_valid(&self, gradient: &[f64]) -> bool {
+    fn new_s_and_y_valid(&self, g: &[f64]) -> bool {
         // TODO: Check if EPSILON should be changed
         const EPSILON: f64 = 1e-12;
 
@@ -124,33 +125,28 @@ impl Estimator {
             / vec_ops::inner_product(&self.y.last().unwrap(), &self.y.last().unwrap());
 
         // TODO: Check the alpha power to be used
-        let ep = EPSILON * vec_ops::norm2(gradient);
+        let ep = EPSILON * vec_ops::norm2(g);
 
         // Condition: (y^T * s) / ||s||^2 > epsilon * ||grad(x)||^alpha
         sy > ep && sy.is_finite() && ep.is_finite()
     }
 
     /// Saves vectors to update the Hessian estimate
-    pub fn update_hessian(&mut self, gradient: &[f64], state: &[f64]) -> UpdateStatus {
-        assert!(gradient.len() == self.old_state.len());
+    pub fn update_hessian(&mut self, g: &[f64], state: &[f64]) -> UpdateStatus {
+        assert!(g.len() == self.old_state.len());
         assert!(state.len() == self.old_state.len());
 
         // Form the new s_k in the temporary area
         vec_ops::difference_and_save(&mut self.s.last_mut().unwrap(), &state, &self.old_state);
 
         // Form the new y_k in the temporary area
-        vec_ops::difference_and_save(
-            &mut self.y.last_mut().unwrap(),
-            &gradient,
-            &self.old_gradient,
-        );
-
-        // TODO: Check if these should be inside the if statement
-        self.old_state.copy_from_slice(state);
-        self.old_gradient.copy_from_slice(gradient);
+        vec_ops::difference_and_save(&mut self.y.last_mut().unwrap(), &g, &self.old_g);
 
         // Check that the s and y are valid to use
-        if self.new_s_and_y_valid(gradient) {
+        if self.new_s_and_y_valid(g) {
+            self.old_state.copy_from_slice(state);
+            self.old_g.copy_from_slice(g);
+
             // Move the new s_0 and y_0 to the front
             self.s.rotate_right(1);
             self.y.rotate_right(1);
