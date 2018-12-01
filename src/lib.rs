@@ -28,8 +28,8 @@ pub struct Estimator {
     gamma: f64,
     /// s holds the vectors of state difference s_k = x_{k+1} - x_k, s_0 holds the most recent s
     s: Vec<Vec<f64>>,
-    /// y holds the vectors of the function g (usually const function gradient) difference:
-    /// y_k = g_{k+1} - df_k, y_0 holds the most recent y
+    /// y holds the vectors of the function g (usually cost function gradient) difference:
+    /// y_k = g_{k+1} - g_k, y_0 holds the most recent y
     y: Vec<Vec<f64>>,
     alpha: Vec<f64>,
     rho: Vec<f64>,
