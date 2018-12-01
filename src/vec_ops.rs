@@ -21,7 +21,7 @@ use std::iter::Sum;
 use std::ops::Mul;
 
 /// Calculate the inner product of two slices
-#[inline(always)]
+#[inline]
 pub fn inner_product<T>(a: &[T], b: &[T]) -> T
 where
     T: Float + Sum<T> + Mul<T, Output = T>,
@@ -32,7 +32,7 @@ where
 }
 
 /// Calculate the 2-norm of a slice
-#[inline(always)]
+#[inline]
 pub fn norm1<T>(a: &[T]) -> T
 where
     T: Float + Sum<T>,
@@ -41,7 +41,7 @@ where
 }
 
 /// Calculate the squared 2-norm of a slice
-#[inline(always)]
+#[inline]
 pub fn norm2_sq<T>(a: &[T]) -> T
 where
     T: Float + Sum<T>,
@@ -50,7 +50,7 @@ where
 }
 
 /// Calculate the 2-norm of a slice
-#[inline(always)]
+#[inline]
 pub fn norm2<T>(a: &[T]) -> T
 where
     T: Float + Sum<T>,
@@ -59,7 +59,7 @@ where
 }
 
 /// Calculate the infinity-norm of a slice
-#[inline(always)]
+#[inline]
 pub fn norm_inf<T>(a: &[T]) -> T
 where
     T: Float + Zero,
@@ -69,7 +69,7 @@ where
 }
 
 /// Calculates the difference of two vectors and saves it in the third
-#[inline(always)]
+#[inline]
 pub fn difference_and_save<T>(out: &mut [T], a: &[T], b: &[T])
 where
     T: Float,
@@ -83,7 +83,7 @@ where
 }
 
 /// Calculates a scalar times vector
-#[inline(always)]
+#[inline]
 pub fn scalar_mult<T>(a: &mut [T], s: T)
 where
     T: Float,
@@ -92,7 +92,7 @@ where
 }
 
 /// Calculates out = out + s * a
-#[inline(always)]
+#[inline]
 pub fn inplace_vec_add<T>(out: &mut [T], a: &[T], s: T)
 where
     T: Float,
