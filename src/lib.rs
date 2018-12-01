@@ -115,24 +115,28 @@ impl Estimator {
     /// Check the validity of the newly added s and y vectors. Based on the condition in:
     /// D.-H. Li and M. Fukushima, "On the global convergence of the BFGS method for nonconvex
     /// unconstrained optimization problems," vol. 11, no. 4, pp. 1054–1064, jan 2001.
-    fn new_s_and_y_valid(&self, g: &[f64]) -> bool {
-        // TODO: Check if EPSILON should be changed
-        const EPSILON: f64 = 1e-12;
+    fn new_s_and_y_valid(&self, g: &[f64], cbfgs_alpha: f64, cbfgs_epsilon: f64) -> bool {
+        if cbfgs_epsilon > 0.0 && cbfgs_alpha > 0.0 {
+            let sy = vec_ops::inner_product(&self.s.last().unwrap(), &self.y.last().unwrap())
+                / vec_ops::inner_product(&self.y.last().unwrap(), &self.y.last().unwrap());
 
-        // TODO: Add a check for epsilon to skip this if zero
+            let ep = cbfgs_epsilon * vec_ops::norm2(g).powf(cbfgs_alpha);
 
-        let sy = vec_ops::inner_product(&self.s.last().unwrap(), &self.y.last().unwrap())
-            / vec_ops::inner_product(&self.y.last().unwrap(), &self.y.last().unwrap());
-
-        // TODO: Check the alpha power to be used
-        let ep = EPSILON * vec_ops::norm2(g);
-
-        // Condition: (y^T * s) / ||s||^2 > epsilon * ||grad(x)||^alpha
-        sy > ep && sy.is_finite() && ep.is_finite()
+            // Condition: (y^T * s) / ||s||^2 > epsilon * ||grad(x)||^alpha
+            sy > ep && sy.is_finite() && ep.is_finite()
+        } else {
+            true
+        }
     }
 
     /// Saves vectors to update the Hessian estimate
-    pub fn update_hessian(&mut self, g: &[f64], state: &[f64]) -> UpdateStatus {
+    pub fn update_hessian(
+        &mut self,
+        g: &[f64],
+        state: &[f64],
+        cbfgs_alpha: f64,
+        cbfgs_epsilon: f64,
+    ) -> UpdateStatus {
         assert!(g.len() == self.old_state.len());
         assert!(state.len() == self.old_state.len());
 
@@ -143,7 +147,7 @@ impl Estimator {
         vec_ops::difference_and_save(&mut self.y.last_mut().unwrap(), &g, &self.old_g);
 
         // Check that the s and y are valid to use
-        if self.new_s_and_y_valid(g) {
+        if self.new_s_and_y_valid(g, cbfgs_alpha, cbfgs_epsilon) {
             self.old_state.copy_from_slice(state);
             self.old_g.copy_from_slice(g);
 
@@ -186,45 +190,13 @@ mod tests {
     #[should_panic]
     fn lbfgs_panic_apply_size_grad() {
         let mut e = Estimator::new(5, 5);
-        e.update_hessian(&vec![0.0; 4], &vec![0.0; 5]);
+        e.update_hessian(&vec![0.0; 4], &vec![0.0; 5], 1.0, 1e-12);
     }
 
     #[test]
     #[should_panic]
     fn lbfgs_panic_apply_state() {
         let mut e = Estimator::new(5, 5);
-        e.update_hessian(&vec![0.0; 5], &vec![0.0; 4]);
-    }
-
-    #[test]
-    fn lbfgs_test() {
-        let mut e = Estimator::new(2, 3);
-        println!();
-        println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&vec![1.0, 1.0], &vec![1.0, 1.0]);
-        e.apply_hessian(&mut vec![-1.0, 1.0]);
-
-        println!();
-        println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&vec![3.0, 2.0], &vec![2.0, 3.0]);
-        e.apply_hessian(&mut vec![2.0, 1.0]);
-
-        println!();
-        println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&vec![5.0, 6.0], &vec![6.0, 5.0]);
-        e.apply_hessian(&mut vec![3.0, 1.0]);
-
-        println!();
-        println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&vec![9.0, 10.0], &vec![10.0, 9.0]);
-        e.apply_hessian(&mut vec![4.0, 1.0]);
-
-        println!();
-        println!("LBFGS instance: {:?}", e);
-        e.update_hessian(&vec![5.0, 6.0], &vec![6.0, 5.0]);
-        e.apply_hessian(&mut vec![3.0, 1.0]);
-
-        println!("LBFGS instance: {:?}", e);
-        println!();
+        e.update_hessian(&vec![0.0; 5], &vec![0.0; 4], 1.0, 1e-12);
     }
 }
