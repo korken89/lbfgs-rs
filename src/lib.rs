@@ -77,35 +77,31 @@ impl Estimator {
             let q = g;
 
             // Perform the forward L-BFGS algorithm
-            active_s
-                .iter()
-                .zip(active_y.iter())
-                .enumerate()
-                .for_each(|(idx, (s_k, y_k))| {
-                    let r = 1.0 / vec_ops::inner_product(s_k, y_k);
-                    let a = r * vec_ops::inner_product(s_k, q);
+            for (idx, (s_k, y_k)) in active_s.iter().zip(active_y.iter()).enumerate() {
+                let r = 1.0 / vec_ops::inner_product(s_k, y_k);
+                let a = r * vec_ops::inner_product(s_k, q);
+                rho[idx] = r;
+                alpha[idx] = a;
 
-                    rho[idx] = r;
-                    alpha[idx] = a;
-
-                    vec_ops::inplace_vec_add(q, y_k, -a);
-                });
+                vec_ops::inplace_vec_add(q, y_k, -a);
+            }
 
             // Apply the initial Hessian estimate and form r = H_0 * q, where H_0 = gamma * I
             vec_ops::scalar_mult(q, self.gamma);
             let r = q;
 
             // Perform the backward L-BFGS algorithm
-            active_s
+            for (idx, (s_k, y_k)) in active_s
                 .iter()
                 .rev()
                 .zip(active_y.iter().rev())
                 .enumerate()
                 .rev()
-                .for_each(|(idx, (s_k, y_k))| {
-                    let beta = rho[idx] * vec_ops::inner_product(y_k, r);
-                    vec_ops::inplace_vec_add(r, s_k, alpha[idx] - beta);
-                });
+            {
+                let beta = rho[idx] * vec_ops::inner_product(y_k, r);
+
+                vec_ops::inplace_vec_add(r, s_k, alpha[idx] - beta);
+            }
 
             // The g with the Hessian applied is available in the input g
             // r = H_k * grad f
