@@ -81,14 +81,14 @@ impl Estimator {
                 .iter()
                 .zip(active_y.iter())
                 .enumerate()
-                .for_each(|(idx, (a_s, a_y))| {
-                    let r = 1.0 / vec_ops::inner_product(a_s, a_y);
-                    let a = r * vec_ops::inner_product(a_s, q);
+                .for_each(|(idx, (s_k, y_k))| {
+                    let r = 1.0 / vec_ops::inner_product(s_k, y_k);
+                    let a = r * vec_ops::inner_product(s_k, q);
 
                     rho[idx] = r;
                     alpha[idx] = a;
 
-                    vec_ops::inplace_vec_add(q, a_y, -a);
+                    vec_ops::inplace_vec_add(q, y_k, -a);
                 });
 
             // Apply the initial Hessian estimate and form r = H_0 * q, where H_0 = gamma * I
@@ -102,9 +102,9 @@ impl Estimator {
                 .zip(active_y.iter().rev())
                 .enumerate()
                 .rev()
-                .for_each(|(idx, (a_s, a_y))| {
-                    let beta = rho[idx] * vec_ops::inner_product(a_y, r);
-                    vec_ops::inplace_vec_add(r, a_s, alpha[idx] - beta);
+                .for_each(|(idx, (s_k, y_k))| {
+                    let beta = rho[idx] * vec_ops::inner_product(y_k, r);
+                    vec_ops::inplace_vec_add(r, s_k, alpha[idx] - beta);
                 });
 
             // The g with the Hessian applied is available in the input g
