@@ -17,6 +17,7 @@
 //!
 
 extern crate num;
+use std::num::NonZeroUsize;
 
 pub mod vec_ops;
 
@@ -33,6 +34,10 @@ pub struct Estimator {
     y: Vec<Vec<f64>>,
     alpha: Vec<f64>,
     rho: Vec<f64>,
+    /// The alpha parameter of the C-BFGS criterion
+    cbfgs_alpha: f64,
+    /// The epsilon parameter of the C-BFGS criterion
+    cbfgs_epsilon: f64,
     old_state: Vec<f64>,
     old_g: Vec<f64>,
     first_old: bool,
@@ -47,9 +52,9 @@ pub enum UpdateStatus {
 }
 
 impl Estimator {
-    pub fn new(problem_size: usize, buffer_size: usize) -> Estimator {
-        assert!(problem_size > 0); // TODO: Replace this with core::nonzero when stable
-        assert!(buffer_size > 0);
+    pub fn new(problem_size: NonZeroUsize, buffer_size: NonZeroUsize) -> Estimator {
+        let problem_size = problem_size.get();
+        let buffer_size = buffer_size.get();
 
         Estimator {
             active_size: 0,
@@ -58,10 +63,26 @@ impl Estimator {
             y: vec![vec![0.0; problem_size]; buffer_size + 1], // +1 for the temporary checking area
             alpha: vec![0.0; buffer_size],
             rho: vec![0.0; buffer_size],
+            cbfgs_alpha: 0.0,
+            cbfgs_epsilon: 0.0,
             old_state: vec![0.0; problem_size],
             old_g: vec![0.0; problem_size],
             first_old: true,
         }
+    }
+
+    /// Update the default C-BFGS alpha
+    pub fn with_cbfgs_alpha(&mut self, alpha: f64) {
+        assert!(alpha >= 0.0);
+
+        self.cbfgs_alpha = alpha;
+    }
+
+    /// Update the default C-BFGS epsilon
+    pub fn with_cbfgs_epsilon(&mut self, epsilon: f64) {
+        assert!(epsilon >= 0.0);
+
+        self.cbfgs_epsilon = epsilon;
     }
 
     /// Apply the current Hessian estimate to an input vector
@@ -113,12 +134,12 @@ impl Estimator {
     /// Check the validity of the newly added s and y vectors. Based on the condition in:
     /// D.-H. Li and M. Fukushima, "On the global convergence of the BFGS method for nonconvex
     /// unconstrained optimization problems," vol. 11, no. 4, pp. 1054–1064, jan 2001.
-    fn new_s_and_y_valid(&self, g: &[f64], cbfgs_alpha: f64, cbfgs_epsilon: f64) -> bool {
-        if cbfgs_epsilon > 0.0 && cbfgs_alpha > 0.0 {
+    fn new_s_and_y_valid(&self, g: &[f64]) -> bool {
+        if self.cbfgs_epsilon > 0.0 && self.cbfgs_alpha > 0.0 {
             let sy = vec_ops::inner_product(&self.s.last().unwrap(), &self.y.last().unwrap())
-                / vec_ops::inner_product(&self.y.last().unwrap(), &self.y.last().unwrap());
+                / vec_ops::inner_product(&self.s.last().unwrap(), &self.s.last().unwrap());
 
-            let ep = cbfgs_epsilon * vec_ops::norm2(g).powf(cbfgs_alpha);
+            let ep = self.cbfgs_epsilon * vec_ops::norm2(g).powf(self.cbfgs_alpha);
 
             // Condition: (y^T * s) / ||s||^2 > epsilon * ||grad(x)||^alpha
             sy > ep && sy.is_finite() && ep.is_finite()
@@ -128,13 +149,7 @@ impl Estimator {
     }
 
     /// Saves vectors to update the Hessian estimate
-    pub fn update_hessian(
-        &mut self,
-        g: &[f64],
-        state: &[f64],
-        cbfgs_alpha: f64,
-        cbfgs_epsilon: f64,
-    ) -> UpdateStatus {
+    pub fn update_hessian(&mut self, g: &[f64], state: &[f64]) -> UpdateStatus {
         assert!(g.len() == self.old_state.len());
         assert!(state.len() == self.old_state.len());
 
@@ -155,7 +170,7 @@ impl Estimator {
         vec_ops::difference_and_save(&mut self.y.last_mut().unwrap(), &g, &self.old_g);
 
         // Check that the s and y are valid to use
-        if self.new_s_and_y_valid(g, cbfgs_alpha, cbfgs_epsilon) {
+        if self.new_s_and_y_valid(g) {
             self.old_state.copy_from_slice(state);
             self.old_g.copy_from_slice(g);
 
@@ -164,9 +179,8 @@ impl Estimator {
             self.y.rotate_right(1);
 
             // Update the Hessian estimate
-            let g1 = vec_ops::inner_product(&self.s[0], &self.y[0]);
-            let g2 = vec_ops::inner_product(&self.y[0], &self.y[0]);
-            self.gamma = g1 / g2;
+            self.gamma = vec_ops::inner_product(&self.s[0], &self.y[0])
+                / vec_ops::inner_product(&self.y[0], &self.y[0]);
 
             // Update the indexes and number of active, -1 comes from the temporary area used in
             // the end of s and y to check if they are valid
@@ -211,43 +225,31 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn lbfgs_panic_problem_size() {
-        let _ = Estimator::new(0, 5);
-    }
-
-    #[test]
-    #[should_panic]
-    fn lbfgs_panic_buffer_size() {
-        let _ = Estimator::new(5, 0);
-    }
-
-    #[test]
-    #[should_panic]
     fn lbfgs_panic_apply_size_grad() {
-        let mut e = Estimator::new(5, 5);
-        e.update_hessian(&vec![0.0; 4], &vec![0.0; 5], 1.0, 1e-12);
+        let mut e = Estimator::new(NonZeroUsize::new(5).unwrap(), NonZeroUsize::new(5).unwrap());
+        e.update_hessian(&vec![0.0; 4], &vec![0.0; 5]);
     }
 
     #[test]
     #[should_panic]
     fn lbfgs_panic_apply_state() {
-        let mut e = Estimator::new(5, 5);
-        e.update_hessian(&vec![0.0; 5], &vec![0.0; 4], 1.0, 1e-12);
+        let mut e = Estimator::new(NonZeroUsize::new(5).unwrap(), NonZeroUsize::new(5).unwrap());
+        e.update_hessian(&vec![0.0; 5], &vec![0.0; 4]);
     }
 
     #[test]
     fn lbfgs_buffer_storage() {
-        let mut e = Estimator::new(2, 3);
-        e.update_hessian(&vec![1.0, 1.0], &vec![1.5, 1.5], 0.0, 0.0);
+        let mut e = Estimator::new(NonZeroUsize::new(2).unwrap(), NonZeroUsize::new(3).unwrap());
+        e.update_hessian(&vec![1.0, 1.0], &vec![1.5, 1.5]);
         assert_eq!(e.active_size, 0);
 
-        e.update_hessian(&vec![2.0, 2.0], &vec![2.5, 2.5], 0.0, 0.0);
+        e.update_hessian(&vec![2.0, 2.0], &vec![2.5, 2.5]);
         assert_eq!(e.active_size, 1);
         assert_eq!(&e.s[0], &vec![1.0, 1.0]);
 
         assert_eq!(&e.y[0], &vec![1.0, 1.0]);
 
-        e.update_hessian(&vec![-3.0, -3.0], &vec![-3.5, -3.5], 0.0, 0.0);
+        e.update_hessian(&vec![-3.0, -3.0], &vec![-3.5, -3.5]);
         assert_eq!(e.active_size, 2);
         assert_eq!(&e.s[0], &vec![-6.0, -6.0]);
         assert_eq!(&e.s[1], &vec![1.0, 1.0]);
@@ -255,7 +257,7 @@ mod tests {
         assert_eq!(&e.y[0], &vec![-5.0, -5.0]);
         assert_eq!(&e.y[1], &vec![1.0, 1.0]);
 
-        e.update_hessian(&vec![-4.0, -4.0], &vec![-4.5, -4.5], 0.0, 0.0);
+        e.update_hessian(&vec![-4.0, -4.0], &vec![-4.5, -4.5]);
         assert_eq!(e.active_size, 3);
         assert_eq!(&e.s[0], &vec![-1.0, -1.0]);
         assert_eq!(&e.s[1], &vec![-6.0, -6.0]);
@@ -265,7 +267,7 @@ mod tests {
         assert_eq!(&e.y[1], &vec![-5.0, -5.0]);
         assert_eq!(&e.y[2], &vec![1.0, 1.0]);
 
-        e.update_hessian(&vec![5.0, 5.0], &vec![5.5, 5.5], 0.0, 0.0);
+        e.update_hessian(&vec![5.0, 5.0], &vec![5.5, 5.5]);
         assert_eq!(e.active_size, 3);
         assert_eq!(&e.s[0], &vec![10.0, 10.0]);
         assert_eq!(&e.s[1], &vec![-1.0, -1.0]);
@@ -278,8 +280,8 @@ mod tests {
 
     #[test]
     fn lbfgs_apply_finite() {
-        let mut e = Estimator::new(2, 3);
-        e.update_hessian(&vec![1.0, 1.0], &vec![1.5, 1.5], 0.0, 0.0);
+        let mut e = Estimator::new(NonZeroUsize::new(2).unwrap(), NonZeroUsize::new(3).unwrap());
+        e.update_hessian(&vec![1.0, 1.0], &vec![1.5, 1.5]);
 
         let mut g = [1.0, 1.0];
         e.apply_hessian(&mut g);
@@ -289,9 +291,9 @@ mod tests {
 
     #[test]
     fn correctneess_buff_empty() {
-        let mut e = Estimator::new(3, 3);
+        let mut e = Estimator::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
         let mut g = [-3.1, 1.5, 2.1];
-        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0], 0.0, 0.0);
+        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0]);
         e.apply_hessian(&mut g);
         let correct_dir = [-3.1, 1.5, 2.1];
         assert_array_ae(&correct_dir, &g, 1e-10, "direction");
@@ -299,11 +301,11 @@ mod tests {
 
     #[test]
     fn correctneess_buff_1() {
-        let mut e = Estimator::new(3, 3);
+        let mut e = Estimator::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
         let mut g = [-3.1, 1.5, 2.1];
 
-        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0], 0.0, 0.0);
-        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3], 0., 0.);
+        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0]);
+        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3]);
         e.apply_hessian(&mut g);
 
         let correct_dir = [-1.100601247872944, -0.086568349404424, 0.948633011911515];
@@ -317,12 +319,12 @@ mod tests {
 
     #[test]
     fn correctneess_buff_2() {
-        let mut e = Estimator::new(3, 3);
+        let mut e = Estimator::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
         let mut g = [-3.1, 1.5, 2.1];
 
-        e.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0], 0.0, 0.0);
-        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3], 0., 0.);
-        e.update_hessian(&[-0.75, 0.9, -1.9], &[0.19, 0.19, -0.44], 0.0, 0.0);
+        e.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0]);
+        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3]);
+        e.update_hessian(&[-0.75, 0.9, -1.9], &[0.19, 0.19, -0.44]);
 
         e.apply_hessian(&mut g);
 
@@ -333,14 +335,14 @@ mod tests {
 
     #[test]
     fn correctneess_buff_overfull() {
-        let mut e = Estimator::new(3, 3);
+        let mut e = Estimator::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
         let mut g = [-2.0, 0.2, -0.3];
 
-        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0], 0.0, 0.0);
-        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3], 0., 0.);
-        e.update_hessian(&[-0.75, 0.9, -1.9], &[0.19, 0.19, -0.44], 0.0, 0.0);
-        e.update_hessian(&[-2.25, 3.5, -3.1], &[0.39, 0.39, -0.84], 0.0, 0.0);
-        e.update_hessian(&[-3.75, 6.3, -4.3], &[0.49, 0.59, -1.24], 0.0, 0.0);
+        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0]);
+        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3]);
+        e.update_hessian(&[-0.75, 0.9, -1.9], &[0.19, 0.19, -0.44]);
+        e.update_hessian(&[-2.25, 3.5, -3.1], &[0.39, 0.39, -0.84]);
+        e.update_hessian(&[-3.75, 6.3, -4.3], &[0.49, 0.59, -1.24]);
 
         e.apply_hessian(&mut g);
 
