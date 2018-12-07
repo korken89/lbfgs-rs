@@ -162,6 +162,8 @@ impl Estimator {
             self.gamma = vec_ops::inner_product(&self.s[0], &self.y[0])
                 / vec_ops::inner_product(&self.y[0], &self.y[0]);
 
+            println!("gamma: {}", self.gamma);
+
             // Update the indexes and number of active, -1 comes from the temporary area used in
             // the end of s and y to check if they are valid
             self.active_size = (self.s.len() - 1).min(self.active_size + 1);
@@ -259,7 +261,7 @@ mod tests {
     }
 
     #[test]
-    fn lbfgs_apply() {
+    fn lbfgs_apply_finite() {
         let mut e = Estimator::new(2, 3);
         e.update_hessian(&vec![1.0, 1.0], &vec![1.5, 1.5], 0.0, 0.0);
 
@@ -267,5 +269,40 @@ mod tests {
         e.apply_hessian(&mut g);
 
         assert_eq!(vec_is_finite(&g), true);
+    }
+
+    #[test]
+    fn lbfgs_apply() {
+        let mut e = Estimator::new(2, 3);
+
+        let mut g = vec![1.0, 1.0];
+        e.update_hessian(&g, &vec![1.5, 1.5], 0.0, 0.0);
+        e.apply_hessian(&mut g);
+
+        println!("g: {:?}", g);
+
+        let mut g = vec![2.0, 2.0];
+        e.update_hessian(&g, &vec![2.5, 2.5], 0.0, 0.0);
+        e.apply_hessian(&mut g);
+
+        println!("g: {:?}", g);
+
+        let mut g = vec![-3.0, -3.0];
+        e.update_hessian(&g, &vec![-3.5, -3.5], 0.0, 0.0);
+        e.apply_hessian(&mut g);
+
+        println!("g: {:?}", g);
+
+        let mut g = vec![-4.0, -4.0];
+        e.update_hessian(&g, &vec![-4.5, -4.5], 0.0, 0.0);
+        e.apply_hessian(&mut g);
+
+        println!("g: {:?}", g);
+
+        let mut g = vec![5.0, 5.0];
+        e.update_hessian(&g, &vec![5.5, 5.5], 0.0, 0.0);
+        e.apply_hessian(&mut g);
+
+        println!("g: {:?}", g);
     }
 }
