@@ -32,14 +32,19 @@ pub struct Estimator {
     /// y holds the vectors of the function g (usually cost function gradient) difference:
     /// y_k = g_{k+1} - g_k, y_0 holds the most recent y
     y: Vec<Vec<f64>>,
+    /// Intermediary storage for the forward L-BFGS pass
     alpha: Vec<f64>,
+    /// Intermediary storage for the forward L-BFGS pass
     rho: Vec<f64>,
     /// The alpha parameter of the C-BFGS criterion
     cbfgs_alpha: f64,
     /// The epsilon parameter of the C-BFGS criterion
     cbfgs_epsilon: f64,
+    /// Holds the state of the last `update_hessian`, used to calculate the `s_k` vectors
     old_state: Vec<f64>,
+    /// Holds the g of the last `update_hessian`, used to calculate the `y_k` vectors
     old_g: Vec<f64>,
+    /// Check to see if the `old_*` variables have valid data
     first_old: bool,
 }
 
@@ -52,6 +57,7 @@ pub enum UpdateStatus {
 }
 
 impl Estimator {
+    /// Create a new L-BFGS instance with a specific problem and L-BFGS buffer size
     pub fn new(problem_size: NonZeroUsize, buffer_size: NonZeroUsize) -> Estimator {
         let problem_size = problem_size.get();
         let buffer_size = buffer_size.get();
@@ -229,14 +235,14 @@ mod tests {
     #[should_panic]
     fn lbfgs_panic_apply_size_grad() {
         let mut e = Estimator::new(NonZeroUsize::new(5).unwrap(), NonZeroUsize::new(5).unwrap());
-        e.update_hessian(&vec![0.0; 4], &vec![0.0; 5]);
+        e.update_hessian(&[0.0; 4], &[0.0; 5]);
     }
 
     #[test]
     #[should_panic]
     fn lbfgs_panic_apply_state() {
         let mut e = Estimator::new(NonZeroUsize::new(5).unwrap(), NonZeroUsize::new(5).unwrap());
-        e.update_hessian(&vec![0.0; 5], &vec![0.0; 4]);
+        e.update_hessian(&[0.0; 5], &[0.0; 4]);
     }
 
     #[test]
@@ -256,48 +262,48 @@ mod tests {
     #[test]
     fn lbfgs_buffer_storage() {
         let mut e = Estimator::new(NonZeroUsize::new(2).unwrap(), NonZeroUsize::new(3).unwrap());
-        e.update_hessian(&vec![1.0, 1.0], &vec![1.5, 1.5]);
+        e.update_hessian(&[1.0, 1.0], &[1.5, 1.5]);
         assert_eq!(e.active_size, 0);
 
-        e.update_hessian(&vec![2.0, 2.0], &vec![2.5, 2.5]);
+        e.update_hessian(&[2.0, 2.0], &[2.5, 2.5]);
         assert_eq!(e.active_size, 1);
-        assert_eq!(&e.s[0], &vec![1.0, 1.0]);
+        assert_eq!(&e.s[0], &[1.0, 1.0]);
 
-        assert_eq!(&e.y[0], &vec![1.0, 1.0]);
+        assert_eq!(&e.y[0], &[1.0, 1.0]);
 
-        e.update_hessian(&vec![-3.0, -3.0], &vec![-3.5, -3.5]);
+        e.update_hessian(&[-3.0, -3.0], &[-3.5, -3.5]);
         assert_eq!(e.active_size, 2);
-        assert_eq!(&e.s[0], &vec![-6.0, -6.0]);
-        assert_eq!(&e.s[1], &vec![1.0, 1.0]);
+        assert_eq!(&e.s[0], &[-6.0, -6.0]);
+        assert_eq!(&e.s[1], &[1.0, 1.0]);
 
-        assert_eq!(&e.y[0], &vec![-5.0, -5.0]);
-        assert_eq!(&e.y[1], &vec![1.0, 1.0]);
+        assert_eq!(&e.y[0], &[-5.0, -5.0]);
+        assert_eq!(&e.y[1], &[1.0, 1.0]);
 
-        e.update_hessian(&vec![-4.0, -4.0], &vec![-4.5, -4.5]);
+        e.update_hessian(&[-4.0, -4.0], &[-4.5, -4.5]);
         assert_eq!(e.active_size, 3);
-        assert_eq!(&e.s[0], &vec![-1.0, -1.0]);
-        assert_eq!(&e.s[1], &vec![-6.0, -6.0]);
-        assert_eq!(&e.s[2], &vec![1.0, 1.0]);
+        assert_eq!(&e.s[0], &[-1.0, -1.0]);
+        assert_eq!(&e.s[1], &[-6.0, -6.0]);
+        assert_eq!(&e.s[2], &[1.0, 1.0]);
 
-        assert_eq!(&e.y[0], &vec![-1.0, -1.0]);
-        assert_eq!(&e.y[1], &vec![-5.0, -5.0]);
-        assert_eq!(&e.y[2], &vec![1.0, 1.0]);
+        assert_eq!(&e.y[0], &[-1.0, -1.0]);
+        assert_eq!(&e.y[1], &[-5.0, -5.0]);
+        assert_eq!(&e.y[2], &[1.0, 1.0]);
 
-        e.update_hessian(&vec![5.0, 5.0], &vec![5.5, 5.5]);
+        e.update_hessian(&[5.0, 5.0], &[5.5, 5.5]);
         assert_eq!(e.active_size, 3);
-        assert_eq!(&e.s[0], &vec![10.0, 10.0]);
-        assert_eq!(&e.s[1], &vec![-1.0, -1.0]);
-        assert_eq!(&e.s[2], &vec![-6.0, -6.0]);
+        assert_eq!(&e.s[0], &[10.0, 10.0]);
+        assert_eq!(&e.s[1], &[-1.0, -1.0]);
+        assert_eq!(&e.s[2], &[-6.0, -6.0]);
 
-        assert_eq!(&e.y[0], &vec![9.0, 9.0]);
-        assert_eq!(&e.y[1], &vec![-1.0, -1.0]);
-        assert_eq!(&e.y[2], &vec![-5.0, -5.0]);
+        assert_eq!(&e.y[0], &[9.0, 9.0]);
+        assert_eq!(&e.y[1], &[-1.0, -1.0]);
+        assert_eq!(&e.y[2], &[-5.0, -5.0]);
     }
 
     #[test]
     fn lbfgs_apply_finite() {
         let mut e = Estimator::new(NonZeroUsize::new(2).unwrap(), NonZeroUsize::new(3).unwrap());
-        e.update_hessian(&vec![1.0, 1.0], &vec![1.5, 1.5]);
+        e.update_hessian(&[1.0, 1.0], &[1.5, 1.5]);
 
         let mut g = [1.0, 1.0];
         e.apply_hessian(&mut g);
@@ -309,7 +315,7 @@ mod tests {
     fn correctneess_buff_empty() {
         let mut e = Estimator::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
         let mut g = [-3.1, 1.5, 2.1];
-        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0]);
+        e.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0]);
         e.apply_hessian(&mut g);
         let correct_dir = [-3.1, 1.5, 2.1];
         assert_array_ae(&correct_dir, &g, 1e-10, "direction");
@@ -320,7 +326,7 @@ mod tests {
         let mut e = Estimator::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
         let mut g = [-3.1, 1.5, 2.1];
 
-        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0]);
+        e.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0]);
         e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3]);
         e.apply_hessian(&mut g);
 
@@ -354,7 +360,7 @@ mod tests {
         let mut e = Estimator::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
         let mut g = [-2.0, 0.2, -0.3];
 
-        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0]);
+        e.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0]);
         e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3]);
         e.update_hessian(&[-0.75, 0.9, -1.9], &[0.19, 0.19, -0.44]);
         e.update_hessian(&[-2.25, 3.5, -3.1], &[0.39, 0.39, -0.84]);
