@@ -53,7 +53,7 @@ impl Estimator {
         Estimator {
             active_size: 0,
             gamma: 1.0,
-            s: vec![vec![1.0; problem_size]; buffer_size + 1], // +1 for the temporary checking area
+            s: vec![vec![0.0; problem_size]; buffer_size + 1], // +1 for the temporary checking area
             y: vec![vec![0.0; problem_size]; buffer_size + 1], // +1 for the temporary checking area
             alpha: vec![0.0; buffer_size],
             rho: vec![0.0; buffer_size],
@@ -79,6 +79,11 @@ impl Estimator {
             // Perform the forward L-BFGS algorithm
             for (idx, (s_k, y_k)) in active_s.iter().zip(active_y.iter()).enumerate() {
                 let r = 1.0 / vec_ops::inner_product(s_k, y_k);
+
+                if !r.is_finite() {
+                    return;
+                }
+
                 let a = r * vec_ops::inner_product(s_k, q);
                 rho[idx] = r;
                 alpha[idx] = a;
@@ -171,6 +176,20 @@ impl Estimator {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use num::Float;
+
+    fn vec_is_finite<T>(vec: &[T]) -> bool
+    where
+        T: Float,
+    {
+        for val in vec.iter() {
+            if !val.is_finite() {
+                return false;
+            }
+        }
+
+        true
+    }
 
     #[test]
     #[should_panic]
@@ -237,5 +256,16 @@ mod tests {
         assert_eq!(&e.y[0], &vec![9.0, 9.0]);
         assert_eq!(&e.y[1], &vec![-1.0, -1.0]);
         assert_eq!(&e.y[2], &vec![-5.0, -5.0]);
+    }
+
+    #[test]
+    fn lbfgs_apply() {
+        let mut e = Estimator::new(2, 3);
+        e.update_hessian(&vec![1.0, 1.0], &vec![1.5, 1.5], 0.0, 0.0);
+
+        let mut g = [1.0, 1.0];
+        e.apply_hessian(&mut g);
+
+        assert_eq!(vec_is_finite(&g), true);
     }
 }
