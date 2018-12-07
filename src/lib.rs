@@ -35,6 +35,7 @@ pub struct Estimator {
     rho: Vec<f64>,
     old_state: Vec<f64>,
     old_g: Vec<f64>,
+    first_old: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -59,6 +60,7 @@ impl Estimator {
             rho: vec![0.0; buffer_size],
             old_state: vec![0.0; problem_size],
             old_g: vec![0.0; problem_size],
+            first_old: true,
         }
     }
 
@@ -85,6 +87,7 @@ impl Estimator {
                 }
 
                 let a = r * vec_ops::inner_product(s_k, q);
+
                 rho[idx] = r;
                 alpha[idx] = a;
 
@@ -96,13 +99,7 @@ impl Estimator {
             let r = q;
 
             // Perform the backward L-BFGS algorithm
-            for (idx, (s_k, y_k)) in active_s
-                .iter()
-                .rev()
-                .zip(active_y.iter().rev())
-                .enumerate()
-                .rev()
-            {
+            for (idx, (s_k, y_k)) in active_s.iter().zip(active_y.iter()).enumerate().rev() {
                 let beta = rho[idx] * vec_ops::inner_product(y_k, r);
 
                 vec_ops::inplace_vec_add(r, s_k, alpha[idx] - beta);
@@ -141,13 +138,21 @@ impl Estimator {
         assert!(g.len() == self.old_state.len());
         assert!(state.len() == self.old_state.len());
 
-        if self.active_size > 0 {
-            // Form the new s_k in the temporary area
-            vec_ops::difference_and_save(&mut self.s.last_mut().unwrap(), &state, &self.old_state);
+        // First iteration, only save
+        if self.first_old == true {
+            self.first_old = false;
 
-            // Form the new y_k in the temporary area
-            vec_ops::difference_and_save(&mut self.y.last_mut().unwrap(), &g, &self.old_g);
+            self.old_state.copy_from_slice(state);
+            self.old_g.copy_from_slice(g);
+
+            return UpdateStatus::UpdateOk;
         }
+
+        // Form the new s_k in the temporary area
+        vec_ops::difference_and_save(&mut self.s.last_mut().unwrap(), &state, &self.old_state);
+
+        // Form the new y_k in the temporary area
+        vec_ops::difference_and_save(&mut self.y.last_mut().unwrap(), &g, &self.old_g);
 
         // Check that the s and y are valid to use
         if self.new_s_and_y_valid(g, cbfgs_alpha, cbfgs_epsilon) {
@@ -159,10 +164,9 @@ impl Estimator {
             self.y.rotate_right(1);
 
             // Update the Hessian estimate
-            self.gamma = vec_ops::inner_product(&self.s[0], &self.y[0])
-                / vec_ops::inner_product(&self.y[0], &self.y[0]);
-
-            println!("gamma: {}", self.gamma);
+            let g1 = vec_ops::inner_product(&self.s[0], &self.y[0]);
+            let g2 = vec_ops::inner_product(&self.y[0], &self.y[0]);
+            self.gamma = g1 / g2;
 
             // Update the indexes and number of active, -1 comes from the temporary area used in
             // the end of s and y to check if they are valid
@@ -191,6 +195,18 @@ mod tests {
         }
 
         true
+    }
+
+    fn assert_ae(x: f64, y: f64, tol: f64, msg: &str) {
+        if (x - y).abs() > tol {
+            panic!("({}) {} != {} [log(tol) = {}]", msg, x, y, tol.log10());
+        }
+    }
+
+    fn assert_array_ae(x: &[f64], y: &[f64], tol: f64, msg: &str) {
+        x.iter()
+            .zip(y.iter())
+            .for_each(|(&xi, &yi)| assert_ae(xi, yi, tol, msg));
     }
 
     #[test]
@@ -223,16 +239,16 @@ mod tests {
     fn lbfgs_buffer_storage() {
         let mut e = Estimator::new(2, 3);
         e.update_hessian(&vec![1.0, 1.0], &vec![1.5, 1.5], 0.0, 0.0);
-        assert_eq!(e.active_size, 1);
+        assert_eq!(e.active_size, 0);
 
         e.update_hessian(&vec![2.0, 2.0], &vec![2.5, 2.5], 0.0, 0.0);
-        assert_eq!(e.active_size, 2);
+        assert_eq!(e.active_size, 1);
         assert_eq!(&e.s[0], &vec![1.0, 1.0]);
 
         assert_eq!(&e.y[0], &vec![1.0, 1.0]);
 
         e.update_hessian(&vec![-3.0, -3.0], &vec![-3.5, -3.5], 0.0, 0.0);
-        assert_eq!(e.active_size, 3);
+        assert_eq!(e.active_size, 2);
         assert_eq!(&e.s[0], &vec![-6.0, -6.0]);
         assert_eq!(&e.s[1], &vec![1.0, 1.0]);
 
@@ -272,37 +288,72 @@ mod tests {
     }
 
     #[test]
-    fn lbfgs_apply() {
-        let mut e = Estimator::new(2, 3);
+    fn correctneess_buff_empty() {
+        let mut e = Estimator::new(3, 3);
+        let mut g = [-3.1, 1.5, 2.1];
+        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0], 0.0, 0.0);
+        e.apply_hessian(&mut g);
+        let correct_dir = [-3.1, 1.5, 2.1];
+        assert_array_ae(&correct_dir, &g, 1e-10, "direction");
+    }
 
-        let mut g = vec![1.0, 1.0];
-        e.update_hessian(&g, &vec![1.5, 1.5], 0.0, 0.0);
+    #[test]
+    fn correctneess_buff_1() {
+        let mut e = Estimator::new(3, 3);
+        let mut g = [-3.1, 1.5, 2.1];
+
+        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0], 0.0, 0.0);
+        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3], 0., 0.);
         e.apply_hessian(&mut g);
 
-        println!("g: {:?}", g);
+        let correct_dir = [-1.100601247872944, -0.086568349404424, 0.948633011911515];
+        let alpha_correct = -1.488372093023256;
+        let rho_correct = 2.325581395348837;
 
-        let mut g = vec![2.0, 2.0];
-        e.update_hessian(&g, &vec![2.5, 2.5], 0.0, 0.0);
+        assert_ae(alpha_correct, e.alpha[0], 1e-10, "alpha");
+        assert_ae(rho_correct, e.rho[0], 1e-10, "rho");
+        assert_array_ae(&correct_dir, &g, 1e-10, "direction");
+    }
+
+    #[test]
+    fn correctneess_buff_2() {
+        let mut e = Estimator::new(3, 3);
+        let mut g = [-3.1, 1.5, 2.1];
+
+        e.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0], 0.0, 0.0);
+        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3], 0., 0.);
+        e.update_hessian(&[-0.75, 0.9, -1.9], &[0.19, 0.19, -0.44], 0.0, 0.0);
+
         e.apply_hessian(&mut g);
 
-        println!("g: {:?}", g);
+        let correct_dir = [-1.814749861477524, 0.895232314736337, 1.871795942557546];
 
-        let mut g = vec![-3.0, -3.0];
-        e.update_hessian(&g, &vec![-3.5, -3.5], 0.0, 0.0);
+        assert_array_ae(&correct_dir, &g, 1e-10, "direction");
+    }
+
+    #[test]
+    fn correctneess_buff_overfull() {
+        let mut e = Estimator::new(3, 3);
+        let mut g = [-2.0, 0.2, -0.3];
+
+        e.update_hessian(&vec![0.0, 0.0, 0.0], &vec![0.0, 0.0, 0.0], 0.0, 0.0);
+        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3], 0., 0.);
+        e.update_hessian(&[-0.75, 0.9, -1.9], &[0.19, 0.19, -0.44], 0.0, 0.0);
+        e.update_hessian(&[-2.25, 3.5, -3.1], &[0.39, 0.39, -0.84], 0.0, 0.0);
+        e.update_hessian(&[-3.75, 6.3, -4.3], &[0.49, 0.59, -1.24], 0.0, 0.0);
+
         e.apply_hessian(&mut g);
 
-        println!("g: {:?}", g);
+        println!("{:#.3?}", e);
 
-        let mut g = vec![-4.0, -4.0];
-        e.update_hessian(&g, &vec![-4.5, -4.5], 0.0, 0.0);
-        e.apply_hessian(&mut g);
+        let gamma_correct = 0.077189939288812;
+        let alpha_correct = [-0.044943820224719, -0.295345104333868, -1.899418829910887];
+        let rho_correct = [1.123595505617978, 1.428571428571429, 13.793103448275861];
+        let dir_correct = [-0.933604237447365, -0.078865807539102, 1.016318412551302];
 
-        println!("g: {:?}", g);
-
-        let mut g = vec![5.0, 5.0];
-        e.update_hessian(&g, &vec![5.5, 5.5], 0.0, 0.0);
-        e.apply_hessian(&mut g);
-
-        println!("g: {:?}", g);
+        assert_ae(gamma_correct, e.gamma, 1e-10, "gamma");
+        assert_array_ae(&alpha_correct, &e.alpha, 1e-10, "alpha");
+        assert_array_ae(&rho_correct, &e.rho, 1e-10, "rho");
+        assert_array_ae(&dir_correct, &g, 1e-10, "direction");
     }
 }
