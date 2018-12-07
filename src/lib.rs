@@ -72,17 +72,19 @@ impl Estimator {
     }
 
     /// Update the default C-BFGS alpha
-    pub fn with_cbfgs_alpha(&mut self, alpha: f64) {
+    pub fn with_cbfgs_alpha(mut self, alpha: f64) -> Self {
         assert!(alpha >= 0.0);
 
         self.cbfgs_alpha = alpha;
+        self
     }
 
     /// Update the default C-BFGS epsilon
-    pub fn with_cbfgs_epsilon(&mut self, epsilon: f64) {
+    pub fn with_cbfgs_epsilon(mut self, epsilon: f64) -> Self {
         assert!(epsilon >= 0.0);
 
         self.cbfgs_epsilon = epsilon;
+        self
     }
 
     /// Apply the current Hessian estimate to an input vector
@@ -235,6 +237,20 @@ mod tests {
     fn lbfgs_panic_apply_state() {
         let mut e = Estimator::new(NonZeroUsize::new(5).unwrap(), NonZeroUsize::new(5).unwrap());
         e.update_hessian(&vec![0.0; 5], &vec![0.0; 4]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn lbfgs_panic_cbfgs_alpha() {
+        let mut _e = Estimator::new(NonZeroUsize::new(5).unwrap(), NonZeroUsize::new(5).unwrap())
+            .with_cbfgs_alpha(-1.0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn lbfgs_panic_cbfgs_epsilon() {
+        let mut _e = Estimator::new(NonZeroUsize::new(5).unwrap(), NonZeroUsize::new(5).unwrap())
+            .with_cbfgs_epsilon(-1.0);
     }
 
     #[test]
