@@ -195,4 +195,40 @@ mod tests {
         let mut e = Estimator::new(5, 5);
         e.update_hessian(&vec![0.0; 5], &vec![0.0; 4], 1.0, 1e-12);
     }
+
+    #[test]
+    fn lbfgs_buffer_storage() {
+        let mut e = Estimator::new(2, 3);
+        e.update_hessian(&vec![1.0, 1.0], &vec![1.5, 1.5], 0.0, 0.0);
+
+        e.update_hessian(&vec![2.0, 2.0], &vec![2.5, 2.5], 0.0, 0.0);
+        assert_eq!(&e.s[0], &vec![1.0, 1.0]);
+
+        assert_eq!(&e.y[0], &vec![1.0, 1.0]);
+
+        e.update_hessian(&vec![-3.0, -3.0], &vec![-3.5, -3.5], 0.0, 0.0);
+        assert_eq!(&e.s[0], &vec![-6.0, -6.0]);
+        assert_eq!(&e.s[1], &vec![1.0, 1.0]);
+
+        assert_eq!(&e.y[0], &vec![-5.0, -5.0]);
+        assert_eq!(&e.y[1], &vec![1.0, 1.0]);
+
+        e.update_hessian(&vec![-4.0, -4.0], &vec![-4.5, -4.5], 0.0, 0.0);
+        assert_eq!(&e.s[0], &vec![-1.0, -1.0]);
+        assert_eq!(&e.s[1], &vec![-6.0, -6.0]);
+        assert_eq!(&e.s[2], &vec![1.0, 1.0]);
+
+        assert_eq!(&e.y[0], &vec![-1.0, -1.0]);
+        assert_eq!(&e.y[1], &vec![-5.0, -5.0]);
+        assert_eq!(&e.y[2], &vec![1.0, 1.0]);
+
+        e.update_hessian(&vec![5.0, 5.0], &vec![5.5, 5.5], 0.0, 0.0);
+        assert_eq!(&e.s[0], &vec![10.0, 10.0]);
+        assert_eq!(&e.s[1], &vec![-1.0, -1.0]);
+        assert_eq!(&e.s[2], &vec![-6.0, -6.0]);
+
+        assert_eq!(&e.y[0], &vec![9.0, 9.0]);
+        assert_eq!(&e.y[1], &vec![-1.0, -1.0]);
+        assert_eq!(&e.y[2], &vec![-5.0, -5.0]);
+    }
 }
