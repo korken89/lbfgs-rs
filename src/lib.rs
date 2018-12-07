@@ -136,11 +136,13 @@ impl Estimator {
         assert!(g.len() == self.old_state.len());
         assert!(state.len() == self.old_state.len());
 
-        // Form the new s_k in the temporary area
-        vec_ops::difference_and_save(&mut self.s.last_mut().unwrap(), &state, &self.old_state);
+        if self.active_size > 0 {
+            // Form the new s_k in the temporary area
+            vec_ops::difference_and_save(&mut self.s.last_mut().unwrap(), &state, &self.old_state);
 
-        // Form the new y_k in the temporary area
-        vec_ops::difference_and_save(&mut self.y.last_mut().unwrap(), &g, &self.old_g);
+            // Form the new y_k in the temporary area
+            vec_ops::difference_and_save(&mut self.y.last_mut().unwrap(), &g, &self.old_g);
+        }
 
         // Check that the s and y are valid to use
         if self.new_s_and_y_valid(g, cbfgs_alpha, cbfgs_epsilon) {
