@@ -107,18 +107,25 @@ impl Estimator {
 
             let q = g;
 
-            // Perform the forward L-BFGS algorithm
-            for (idx, (s_k, y_k)) in active_s.iter().zip(active_y.iter()).enumerate() {
+            // Check so all rho_k are finite, else do not update the output
+            for (s_k, (y_k, rho_k)) in active_s.iter().zip(active_y.iter().zip(rho.iter_mut())) {
                 let r = 1.0 / vec_ops::inner_product(s_k, y_k);
 
                 if !r.is_finite() {
                     return;
                 }
 
-                let a = r * vec_ops::inner_product(s_k, q);
+                *rho_k = r;
+            }
 
-                rho[idx] = r;
-                alpha[idx] = a;
+            // Perform the forward L-BFGS algorithm
+            for (s_k, (y_k, (rho_k, alpha_k))) in active_s
+                .iter()
+                .zip(active_y.iter().zip(rho.iter().zip(alpha.iter_mut())))
+            {
+                let a = rho_k * vec_ops::inner_product(s_k, q);
+
+                *alpha_k = a;
 
                 vec_ops::inplace_vec_add(q, y_k, -a);
             }
@@ -128,10 +135,14 @@ impl Estimator {
             let r = q;
 
             // Perform the backward L-BFGS algorithm
-            for (idx, (s_k, y_k)) in active_s.iter().zip(active_y.iter()).enumerate().rev() {
-                let beta = rho[idx] * vec_ops::inner_product(y_k, r);
+            for (s_k, (y_k, (rho_k, alpha_k))) in active_s
+                .iter()
+                .zip(active_y.iter().zip(rho.iter().zip(alpha.iter())))
+                .rev()
+            {
+                let beta = rho_k * vec_ops::inner_product(y_k, r);
 
-                vec_ops::inplace_vec_add(r, s_k, alpha[idx] - beta);
+                vec_ops::inplace_vec_add(r, s_k, alpha_k - beta);
             }
 
             // The g with the Hessian applied is available in the input g
