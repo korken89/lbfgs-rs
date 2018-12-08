@@ -210,7 +210,7 @@ fn correctneess_buff_overfull() {
 
     unit_test_utils::assert_nearly_equal(gamma_correct, e.gamma, 1e-8, 1e-10, "gamma");
     unit_test_utils::assert_nearly_equal_array(&alpha_correct, &e.alpha, 1e-8, 1e-10, "alpha");
-    unit_test_utils::assert_nearly_equal_array(&rho_correct, &e.rho, 1e-8, 1e-10, "rho");
+    unit_test_utils::assert_nearly_equal_array(&rho_correct, &e.rho[0..3], 1e-8, 1e-10, "rho");
     unit_test_utils::assert_nearly_equal_array(&dir_correct, &g, 1e-8, 1e-10, "direction");
 }
 

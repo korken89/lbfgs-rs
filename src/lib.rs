@@ -86,7 +86,7 @@ impl Lbfgs {
             s: vec![vec![0.0; problem_size]; buffer_size + 1], // +1 for the temporary checking area
             y: vec![vec![0.0; problem_size]; buffer_size + 1], // +1 for the temporary checking area
             alpha: vec![0.0; buffer_size],
-            rho: vec![0.0; buffer_size],
+            rho: vec![0.0; buffer_size + 1],
             cbfgs_alpha: 0.0,
             cbfgs_epsilon: 0.0,
             sy_epsilon: SY_EPSILON,
@@ -131,17 +131,10 @@ impl Lbfgs {
 
         let active_s = &self.s[0..self.active_size];
         let active_y = &self.y[0..self.active_size];
-        let rho = &mut self.rho;
+        let rho = &mut self.rho[0..self.active_size];
         let alpha = &mut self.alpha;
 
         let q = g;
-
-        // Check so all rho_k are finite, else do not update the output
-        for (s_k, (y_k, rho_k)) in active_s.iter().zip(active_y.iter().zip(rho.iter_mut())) {
-            let r = 1.0 / vec_ops::inner_product(s_k, y_k);
-
-            *rho_k = r;
-        }
 
         // Perform the forward L-BFGS algorithm
         for (s_k, (y_k, (rho_k, alpha_k))) in active_s
@@ -177,11 +170,14 @@ impl Lbfgs {
     /// Check the validity of the newly added s and y vectors. Based on the condition in:
     /// D.-H. Li and M. Fukushima, "On the global convergence of the BFGS method for nonconvex
     /// unconstrained optimization problems," vol. 11, no. 4, pp. 1054–1064, jan 2001.
-    fn new_s_and_y_valid(&self, g: &[f64]) -> bool {
-        let s = &self.s.last().unwrap();
-        let y = &self.y.last().unwrap();
+    fn new_s_and_y_valid(&mut self, g: &[f64]) -> bool {
+        let s = self.s.last().unwrap();
+        let y = self.y.last().unwrap();
+        let rho = self.rho.last_mut().unwrap();
         let ys = vec_ops::inner_product(s, y);
         let norm_s_squared = vec_ops::inner_product(s, s);
+
+        *rho = 1.0 / ys;
 
         if norm_s_squared <= std::f64::MIN_POSITIVE
             || (self.sy_epsilon > 0.0 && ys <= self.sy_epsilon)
@@ -218,10 +214,10 @@ impl Lbfgs {
         }
 
         // Form the new s_k in the temporary area
-        vec_ops::difference_and_save(&mut self.s.last_mut().unwrap(), &state, &self.old_state);
+        vec_ops::difference_and_save(self.s.last_mut().unwrap(), &state, &self.old_state);
 
         // Form the new y_k in the temporary area
-        vec_ops::difference_and_save(&mut self.y.last_mut().unwrap(), &g, &self.old_g);
+        vec_ops::difference_and_save(self.y.last_mut().unwrap(), &g, &self.old_g);
 
         // Check that the s and y are valid to use
         if !self.new_s_and_y_valid(g) {
@@ -234,6 +230,7 @@ impl Lbfgs {
         // Move the new s_0 and y_0 to the front
         self.s.rotate_right(1);
         self.y.rotate_right(1);
+        self.rho.rotate_right(1);
 
         // Update the Hessian estimate
         self.gamma = vec_ops::inner_product(&self.s[0], &self.y[0])
