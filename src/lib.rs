@@ -208,7 +208,7 @@ impl Lbfgs {
         assert!(state.len() == self.old_state.len());
 
         // First iteration, only save
-        if self.first_old == true {
+        if self.first_old {
             self.first_old = false;
 
             self.old_state.copy_from_slice(state);
