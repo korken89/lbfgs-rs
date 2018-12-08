@@ -227,14 +227,13 @@ impl Lbfgs {
         self.old_state.copy_from_slice(state);
         self.old_g.copy_from_slice(g);
 
-        // Move the new s_0 and y_0 to the front
+        // Move the new s_0,  y_0 and rho_0 to the front
         self.s.rotate_right(1);
         self.y.rotate_right(1);
         self.rho.rotate_right(1);
 
         // Update the Hessian estimate
-        self.gamma = vec_ops::inner_product(&self.s[0], &self.y[0])
-            / vec_ops::inner_product(&self.y[0], &self.y[0]);
+        self.gamma = (1.0 / self.rho[0]) / vec_ops::inner_product(&self.y[0], &self.y[0]);
 
         // Update the indexes and number of active, -1 comes from the temporary area used in
         // the end of s and y to check if they are valid
