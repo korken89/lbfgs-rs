@@ -131,7 +131,7 @@ impl Lbfgs {
 
         let active_s = &self.s[0..self.active_size];
         let active_y = &self.y[0..self.active_size];
-        let rho = &mut self.rho[0..self.active_size];
+        let rho = &self.rho[0..self.active_size];
         let alpha = &mut self.alpha;
 
         let q = g;
