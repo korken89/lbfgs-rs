@@ -7,8 +7,11 @@ documentation = "https://docs.rs/lbfgs"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 name = "lbfgs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
 
 [dependencies]
 num = "0.2.0"
+
+[dev-dependencies]
+unit_test_utils = "*"
