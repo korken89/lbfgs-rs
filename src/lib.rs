@@ -120,6 +120,15 @@ impl Lbfgs {
         self
     }
 
+    /// Empties the buffer
+    ///
+    /// This is a cheap operation as it amount to setting certain internal flags
+    /// 
+    pub fn reset(&mut self) {
+        self.active_size = 0;
+        self.first_old = true;
+    }
+
     /// Apply the current Hessian estimate to an input vector
     pub fn apply_hessian(&mut self, g: &mut [f64]) {
         assert!(g.len() == self.old_g.len());
