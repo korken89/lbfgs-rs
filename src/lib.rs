@@ -1,23 +1,86 @@
 //! # lbfgs
 //!
-//! The `L-BFGS`
+//! The `L-BFGS` is an Hessian approximation algorithm commonly used by optimization algorithms in
+//! the family of quasi-Newton methods that approximates the Broyden–Fletcher–Goldfarb–Shanno (BFGS)
+//! algorithm using a limited amount of computer memory. In this implementation extra condition are
+//! added to have convergence properties for non-convex problems, based on the [C-BFGS conditions],
+//! together with basic checks on the local curvature.
 //!
-//! # Examples
+//! [C-BFGS conditions]: https://pdfs.semanticscholar.org/5b90/45b7d27a53b1e3c3b3f0dc6aab908cc3e0b2.pdf
+//!
+//! # Example
+//!
+//! Create a fully featured instance of the L-BFGS algorithm with curvature and C-BFGS checks
+//! enabled.
 //!
 //! ```
+//! use lbfgs::*;
+//!
 //! fn main() {
+//!     // Problem size and the number of stored vectors in L-BFGS cannot be zero
+//!     let problem_size = NonZeroUsize::new(3).unwrap();
+//!     let lbfgs_memory_size = NonZeroUsize::new(5).unwrap();
+//!
+//!     // Create the L-BFGS instance with curvature and C-BFGS checks enabled
+//!     let mut lbfgs = Lbfgs::new(problem_size, lbfgs_memory_size)
+//!         .with_sy_epsilon(1e-8)     // L-BFGS acceptance condition on s'*y > sy_espsilon
+//!         .with_cbfgs_alpha(1.0)     // C-BFGS condition:
+//!         .with_cbfgs_epsilon(1e-4); // y'*s/||s||^2 > epsilon * ||grad(x)||^alpha
+//!
+//!     // Starting value is always accepted (no s or y vectors yet)
+//!     assert_eq!(
+//!         lbfgs.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0]),
+//!         UpdateStatus::UpdateOk
+//!     );
+//!
+//!     // Rejected because of CBFGS condition
+//!     assert_eq!(
+//!         lbfgs.update_hessian(&[-0.838, 0.260, 0.479], &[-0.5, 0.6, -1.2]),
+//!         UpdateStatus::Rejection
+//!     );
+//!
+//!     // This will fail because y'*s == 0 (curvature condition)
+//!     assert_eq!(
+//!         lbfgs.update_hessian(
+//!             &[-0.5, 0.6, -1.2],
+//!             &[0.419058177461747, 0.869843029576958, 0.260313940846084]
+//!         ),
+//!         UpdateStatus::Rejection
+//!     );
+//!
+//!     // A proper update that will be accepted
+//!     assert_eq!(
+//!         lbfgs.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3]),
+//!         UpdateStatus::UpdateOk
+//!     );
+//!
+//!     // Apply Hessian approximation on a gradient
+//!     let mut g = [-3.1, 1.5, 2.1];
+//!     let correct_dir = [-1.100601247872944, -0.086568349404424, 0.948633011911515];
+//!
+//!     lbfgs.apply_hessian(&mut g);
+//!
+//!     assert!((g[0] - correct_dir[0]).abs() < 1e-12);
+//!     assert!((g[1] - correct_dir[1]).abs() < 1e-12);
+//!     assert!((g[2] - correct_dir[2]).abs() < 1e-12);
 //! }
 //! ```
 //!
 //! # Errors
 //!
+//! `update_hessian` will give errors if the C-BFGS or L-BFGS curvature conditions are not met.
 //!
 //! # Panics
 //!
+//! `with_sy_epsilon`, `with_cbfgs_alpha`, and `with_cbfgs_epsilon` will panic if given negative
+//! values.
+//!
+//! `update_hessian` and `apply_hessian` will panic if given slices which are not the same length
+//! as the `problem_size`.
 //!
 
 extern crate num;
-use std::num::NonZeroUsize;
+pub use std::num::NonZeroUsize;
 
 pub mod vec_ops;
 
@@ -98,7 +161,7 @@ impl Lbfgs {
 
     /// Update the default C-BFGS alpha
     pub fn with_cbfgs_alpha(mut self, alpha: f64) -> Self {
-        assert!(alpha >= 0.0);
+        assert!(alpha >= 0.0, "Negative alpha");
 
         self.cbfgs_alpha = alpha;
         self
@@ -120,10 +183,9 @@ impl Lbfgs {
         self
     }
 
-    /// Empties the buffer
+    /// "Empties" the buffer
     ///
     /// This is a cheap operation as it amount to setting certain internal flags
-    /// 
     pub fn reset(&mut self) {
         self.active_size = 0;
         self.first_old = true;
