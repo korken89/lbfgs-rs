@@ -87,7 +87,8 @@ pub mod vec_ops;
 #[cfg(test)]
 mod tests;
 
-const SY_EPSILON: f64 = 1e-10;
+/// The default `sy_epsilon`
+pub const DEFAULT_SY_EPSILON: f64 = 1e-10;
 
 /// LBFGS Buffer
 ///
@@ -118,7 +119,7 @@ pub struct Lbfgs {
     cbfgs_alpha: f64,
     /// The epsilon parameter of the C-BFGS criterion
     cbfgs_epsilon: f64,
-    /// limit on the inner product s'*y for acceptance in the buffer
+    /// Limit on the inner product s'*y for acceptance in the buffer
     sy_epsilon: f64,
     /// Holds the state of the last `update_hessian`, used to calculate the `s_k` vectors
     old_state: Vec<f64>,
@@ -138,7 +139,6 @@ pub enum UpdateStatus {
 
 impl Lbfgs {
     /// Create a new L-BFGS instance with a specific problem and L-BFGS buffer size
-    ///
     pub fn new(problem_size: NonZeroUsize, buffer_size: NonZeroUsize) -> Lbfgs {
         let problem_size = problem_size.get();
         let buffer_size = buffer_size.get();
@@ -152,7 +152,7 @@ impl Lbfgs {
             rho: vec![0.0; buffer_size + 1],
             cbfgs_alpha: 0.0,
             cbfgs_epsilon: 0.0,
-            sy_epsilon: SY_EPSILON,
+            sy_epsilon: DEFAULT_SY_EPSILON,
             old_state: vec![0.0; problem_size],
             old_g: vec![0.0; problem_size],
             first_old: true,
