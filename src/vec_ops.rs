@@ -18,7 +18,7 @@ where
     a.iter().zip(b.iter()).map(|(x, y)| (*x) * (*y)).sum()
 }
 
-/// Calculate the 2-norm of a slice
+/// Calculate the 1-norm of a slice
 #[inline]
 pub fn norm1<T>(a: &[T]) -> T
 where
@@ -55,7 +55,7 @@ where
         .fold(T::zero(), |current_max, x| x.abs().max(current_max))
 }
 
-/// Calculates the difference of two vectors and saves it in the third
+/// Calculates the difference of two slices and saves it in the third: out = a - b
 #[inline]
 pub fn difference_and_save<T>(out: &mut [T], a: &[T], b: &[T])
 where
@@ -69,7 +69,7 @@ where
         .for_each(|(out, (a, b))| *out = (*a) - (*b));
 }
 
-/// Calculates a scalar times vector
+/// Calculates a scalar times slice: out = s * out
 #[inline]
 pub fn scalar_mult<T>(a: &mut [T], s: T)
 where

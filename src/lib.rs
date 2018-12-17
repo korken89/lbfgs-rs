@@ -261,7 +261,8 @@ impl Lbfgs {
             // Condition: (y^T * s) / ||s||^2 > epsilon * ||grad(x)||^alpha
             let lhs_cbfgs = ys / norm_s_squared;
             let rhs_cbfgs = self.cbfgs_epsilon * vec_ops::norm2(g).powf(self.cbfgs_alpha);
-            lhs_cbfgs > rhs_cbfgs && lhs_cbfgs.is_finite() && rhs_cbfgs.is_finite()
+
+            lhs_cbfgs > rhs_cbfgs
         } else {
             // The standard L-BFGS conditions are satisfied and C-BFGS is
             // not active (either cbfgs_epsilon <= 0.0 or cbfgs_alpha <= 0.0)
