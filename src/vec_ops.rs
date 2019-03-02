@@ -1,19 +1,6 @@
 //! # vec_ops
 //!
-//! Matrix operations used by the optimization algorithm.
-//!
-//! # Examples
-//!
-//! ```
-//! fn main() {
-//! }
-//! ```
-//!
-//! # Errors
-//!
-//!
-//! # Panics
-//!
+//! Matrix operations used by the L-BFGS algorithm.
 //!
 
 use num::{Float, Zero};
@@ -26,12 +13,12 @@ pub fn inner_product<T>(a: &[T], b: &[T]) -> T
 where
     T: Float + Sum<T> + Mul<T, Output = T>,
 {
-    assert!(a.len() == b.len());
+    debug_assert!(a.len() == b.len());
 
     a.iter().zip(b.iter()).map(|(x, y)| (*x) * (*y)).sum()
 }
 
-/// Calculate the 2-norm of a slice
+/// Calculate the 1-norm of a slice
 #[inline]
 pub fn norm1<T>(a: &[T]) -> T
 where
@@ -68,21 +55,21 @@ where
         .fold(T::zero(), |current_max, x| x.abs().max(current_max))
 }
 
-/// Calculates the difference of two vectors and saves it in the third
+/// Calculates the difference of two slices and saves it in the third: out = a - b
 #[inline]
 pub fn difference_and_save<T>(out: &mut [T], a: &[T], b: &[T])
 where
     T: Float,
 {
-    assert!(a.len() == b.len());
-    assert!(out.len() == a.len());
+    debug_assert!(a.len() == b.len());
+    debug_assert!(out.len() == a.len());
 
     out.iter_mut()
         .zip(a.iter().zip(b.iter()))
         .for_each(|(out, (a, b))| *out = (*a) - (*b));
 }
 
-/// Calculates a scalar times vector
+/// Calculates a scalar times slice: out = s * out
 #[inline]
 pub fn scalar_mult<T>(a: &mut [T], s: T)
 where
@@ -97,7 +84,7 @@ pub fn inplace_vec_add<T>(out: &mut [T], a: &[T], s: T)
 where
     T: Float,
 {
-    assert!(out.len() == a.len());
+    debug_assert!(out.len() == a.len());
 
     out.iter_mut()
         .zip(a.iter())
