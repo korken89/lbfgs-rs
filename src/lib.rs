@@ -18,8 +18,8 @@
 //!
 //! fn main() {
 //!     // Problem size and the number of stored vectors in L-BFGS cannot be zero
-//!     let problem_size = NonZeroUsize::new(3).unwrap();
-//!     let lbfgs_memory_size = NonZeroUsize::new(5).unwrap();
+//!     let problem_size = 3;
+//!     let lbfgs_memory_size = 5;
 //!
 //!     // Create the L-BFGS instance with curvature and C-BFGS checks enabled
 //!     let mut lbfgs = Lbfgs::new(problem_size, lbfgs_memory_size)
@@ -79,9 +79,6 @@
 //! as the `problem_size`.
 //!
 
-extern crate num;
-pub use std::num::NonZeroUsize;
-
 pub mod vec_ops;
 
 #[cfg(test)]
@@ -139,9 +136,11 @@ pub enum UpdateStatus {
 
 impl Lbfgs {
     /// Create a new L-BFGS instance with a specific problem and L-BFGS buffer size
-    pub fn new(problem_size: NonZeroUsize, buffer_size: NonZeroUsize) -> Lbfgs {
-        let problem_size = problem_size.get();
-        let buffer_size = buffer_size.get();
+    pub fn new(problem_size: usize, buffer_size: usize) -> Lbfgs {
+        let problem_size = problem_size;
+        let buffer_size = buffer_size;
+        assert!(problem_size > 0);
+        assert!(buffer_size > 0);
 
         Lbfgs {
             active_size: 0,
