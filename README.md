@@ -13,8 +13,6 @@ Moreover, the condition for the Cautious-BFGS (C-BFGS) algorithm, specified in
 nonconvex unconstrained optimization problems"](https://pdfs.semanticscholar.org/5b90/45b7d27a53b1e3c3b3f0dc6aab908cc3e0b2.pdf),
 is used to check the updates of the L-BFGS.
 
-Active WIP.
-
 ## License
 
 Licensed under either of
