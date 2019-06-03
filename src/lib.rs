@@ -137,8 +137,6 @@ pub enum UpdateStatus {
 impl Lbfgs {
     /// Create a new L-BFGS instance with a specific problem and L-BFGS buffer size
     pub fn new(problem_size: usize, buffer_size: usize) -> Lbfgs {
-        let problem_size = problem_size;
-        let buffer_size = buffer_size;
         assert!(problem_size > 0);
         assert!(buffer_size > 0);
 
