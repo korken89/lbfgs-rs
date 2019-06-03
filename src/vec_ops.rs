@@ -3,7 +3,7 @@
 //! Matrix operations used by the L-BFGS algorithm.
 //!
 
-use num::{Float, Zero};
+use num_traits::{float::Float, identities::Zero};
 use std::iter::Sum;
 use std::ops::Mul;
 

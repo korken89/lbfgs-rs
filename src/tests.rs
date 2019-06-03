@@ -2,35 +2,45 @@ use crate::*;
 
 #[test]
 #[should_panic]
+fn lbfgs_panic_zero_n() {
+    let mut _e = Lbfgs::new(0, 1);
+}
+
+#[test]
+#[should_panic]
+fn lbfgs_panic_zero_mem() {
+    let mut _e = Lbfgs::new(1, 0);
+}
+
+#[test]
+#[should_panic]
 fn lbfgs_panic_apply_size_grad() {
-    let mut e = Lbfgs::new(NonZeroUsize::new(5).unwrap(), NonZeroUsize::new(5).unwrap());
+    let mut e = Lbfgs::new(5, 5);
     e.update_hessian(&[0.0; 4], &[0.0; 5]);
 }
 
 #[test]
 #[should_panic]
 fn lbfgs_panic_apply_state() {
-    let mut e = Lbfgs::new(NonZeroUsize::new(5).unwrap(), NonZeroUsize::new(5).unwrap());
+    let mut e = Lbfgs::new(5, 5);
     e.update_hessian(&[0.0; 5], &[0.0; 4]);
 }
 
 #[test]
 #[should_panic]
 fn lbfgs_panic_cbfgs_alpha() {
-    let mut _e = Lbfgs::new(NonZeroUsize::new(5).unwrap(), NonZeroUsize::new(5).unwrap())
-        .with_cbfgs_alpha(-1.0);
+    let mut _e = Lbfgs::new(5, 5).with_cbfgs_alpha(-1.0);
 }
 
 #[test]
 #[should_panic]
 fn lbfgs_panic_cbfgs_epsilon() {
-    let mut _e = Lbfgs::new(NonZeroUsize::new(5).unwrap(), NonZeroUsize::new(5).unwrap())
-        .with_cbfgs_epsilon(-1.0);
+    let mut _e = Lbfgs::new(5, 5).with_cbfgs_epsilon(-1.0);
 }
 
 #[test]
 fn lbfgs_buffer_storage() {
-    let mut e = Lbfgs::new(NonZeroUsize::new(2).unwrap(), NonZeroUsize::new(3).unwrap());
+    let mut e = Lbfgs::new(2, 3);
     e.update_hessian(&[1.0, 1.0], &[1.5, 1.5]);
     assert_eq!(e.active_size, 0);
 
@@ -83,7 +93,7 @@ fn lbfgs_buffer_storage() {
 
 #[test]
 fn lbfgs_apply_finite() {
-    let mut e = Lbfgs::new(NonZeroUsize::new(2).unwrap(), NonZeroUsize::new(3).unwrap());
+    let mut e = Lbfgs::new(2, 3);
     e.update_hessian(&[1.0, 1.0], &[1.5, 1.5]);
 
     let mut g = [1.0, 1.0];
@@ -94,7 +104,7 @@ fn lbfgs_apply_finite() {
 
 #[test]
 fn correctneess_buff_empty() {
-    let mut e = Lbfgs::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
+    let mut e = Lbfgs::new(3, 3);
     let mut g = [-3.1, 1.5, 2.1];
     assert_eq!(
         UpdateStatus::UpdateOk,
@@ -107,7 +117,7 @@ fn correctneess_buff_empty() {
 
 #[test]
 fn correctneess_buff_1() {
-    let mut e = Lbfgs::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
+    let mut e = Lbfgs::new(3, 3);
     let mut g = [-3.1, 1.5, 2.1];
 
     assert_eq!(
@@ -131,7 +141,7 @@ fn correctneess_buff_1() {
 
 #[test]
 fn correctneess_buff_2() {
-    let mut e = Lbfgs::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
+    let mut e = Lbfgs::new(3, 3);
     let mut g = [-3.1, 1.5, 2.1];
 
     assert_eq!(
@@ -156,7 +166,7 @@ fn correctneess_buff_2() {
 
 #[test]
 fn correctneess_buff_overfull() {
-    let mut e = Lbfgs::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
+    let mut e = Lbfgs::new(3, 3);
     let mut g = [-2.0, 0.2, -0.3];
 
     assert_eq!(
@@ -216,7 +226,7 @@ fn correctneess_buff_overfull() {
 
 #[test]
 fn correctneess_reset() {
-    let mut e = Lbfgs::new(NonZeroUsize::new(3).unwrap(), NonZeroUsize::new(3).unwrap());
+    let mut e = Lbfgs::new(3, 3);
     let mut g = [-3.1, 1.5, 2.1];
 
     assert_eq!(
@@ -258,8 +268,8 @@ fn correctneess_reset() {
 
 #[test]
 fn reject_perpendicular_sy() {
-    let n = NonZeroUsize::new(3).unwrap();
-    let mem = NonZeroUsize::new(5).unwrap();
+    let n = 3;
+    let mem = 5;
     let mut lbfgs = Lbfgs::new(n, mem).with_sy_epsilon(1e-8);
 
     assert_eq!(
@@ -300,8 +310,8 @@ fn reject_perpendicular_sy() {
 
 #[test]
 fn reject_norm_s_zero() {
-    let n = NonZeroUsize::new(3).unwrap();
-    let mem = NonZeroUsize::new(5).unwrap();
+    let n = 3;
+    let mem = 5;
     let mut lbfgs = Lbfgs::new(n, mem);
 
     assert_eq!(
@@ -324,8 +334,8 @@ fn reject_norm_s_zero() {
 
 #[test]
 fn reject_cfbs_condition() {
-    let n = NonZeroUsize::new(3).unwrap();
-    let mem = NonZeroUsize::new(5).unwrap();
+    let n = 3;
+    let mem = 5;
     let mut lbfgs = Lbfgs::new(n, mem)
         .with_sy_epsilon(1e-8)
         .with_cbfgs_alpha(1.0)
