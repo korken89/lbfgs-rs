@@ -1,6 +1,6 @@
 /// Trait for implementing WideSlice
-pub trait ToWideSlice<'a> {
-    fn to_wideslice(&'a mut self) -> WideSlice<'a>;
+pub trait IntoWideSlice<'a> {
+    fn into_wideslice(&'a mut self) -> WideSlice<'a>;
 }
 
 /// The platform independent data storage
@@ -11,11 +11,17 @@ pub struct WideSlice<'a> {
 }
 
 impl<'a> WideSlice<'a> {
-    pub fn to_slice(&self, idx: usize) -> &'a [f64] {
+    /// Gets the `idx`-th slice from the WideSlice
+    pub fn as_slice(&self, idx: usize) -> &'a [f64] {
+        // Safe through the construction and layout of the WideSlice
+        assert!(idx < self.slices.len());
         unsafe { std::slice::from_raw_parts(self.slices[idx], self.len) }
     }
 
-    pub fn to_mut_slice(&mut self, idx: usize) -> &'a mut [f64] {
+    /// Gets the `idx`-th slice from the WideSlice, mutable slice version
+    pub fn as_mut_slice(&mut self, idx: usize) -> &'a mut [f64] {
+        // Safe through the construction and layout of the WideSlice
+        assert!(idx < self.slices.len());
         unsafe { std::slice::from_raw_parts_mut(self.slices[idx], self.len) }
     }
 }
@@ -44,8 +50,8 @@ impl HeapMem {
     }
 }
 
-impl<'a> ToWideSlice<'a> for HeapMem {
-    fn to_wideslice(&mut self) -> WideSlice {
+impl<'a> IntoWideSlice<'a> for HeapMem {
+    fn into_wideslice(&mut self) -> WideSlice {
         let len = self.buf.len() / self.ptr.len();
 
         WideSlice {
@@ -79,8 +85,8 @@ impl<'a> StaticMem<'a> {
     }
 }
 
-impl<'a> ToWideSlice<'a> for StaticMem<'a> {
-    fn to_wideslice(&'a mut self) -> WideSlice<'a> {
+impl<'a> IntoWideSlice<'a> for StaticMem<'a> {
+    fn into_wideslice(&'a mut self) -> WideSlice<'a> {
         let len = self.buf.len() / self.ptr.len();
 
         WideSlice {
@@ -90,70 +96,70 @@ impl<'a> ToWideSlice<'a> for StaticMem<'a> {
     }
 }
 
-/// Memory that is stack allocated (no-std)
-#[derive(Debug)]
-pub struct StackMem {
-    // pub struct<const SLICE_SIZE: usize, const N_SLICES: usize> StackMem {
-    buf: [f64; 8], // No const generics yet :(
-    ptr: [*mut f64; 4],
-}
-
-impl StackMem {
-    pub fn new() -> StackMem {
-        StackMem {
-            buf: [0.0; 8],
-            ptr: [0 as *mut f64; 4],
-        }
-    }
-}
-
-impl<'a> ToWideSlice<'a> for StackMem {
-    fn to_wideslice(&mut self) -> WideSlice {
-        let len = self.buf.len() / self.ptr.len();
-
-        for (chunk, ptr) in self.buf.chunks_exact_mut(2).zip(self.ptr.iter_mut()) {
-            *ptr = chunk.as_mut_ptr()
-        }
-
-        WideSlice {
-            slices: &mut self.ptr,
-            len: len,
-        }
-    }
-}
+// /// Memory that is stack allocated (no-std)
+// #[derive(Debug)]
+// pub struct StackMem {
+//     // pub struct<const SLICE_SIZE: usize, const N_SLICES: usize> StackMem {
+//     buf: [f64; 8], // No const generics yet :(
+//     ptr: [*mut f64; 4],
+// }
+//
+// impl StackMem {
+//     pub fn new() -> StackMem {
+//         StackMem {
+//             buf: [0.0; 8],
+//             ptr: [0 as *mut f64; 4],
+//         }
+//     }
+// }
+//
+// impl<'a> IntoWideSlice<'a> for StackMem {
+//     fn into_wideslice(&mut self) -> WideSlice {
+//         let len = self.buf.len() / self.ptr.len();
+//
+//         for (chunk, ptr) in self.buf.chunks_exact_mut(2).zip(self.ptr.iter_mut()) {
+//             *ptr = chunk.as_mut_ptr()
+//         }
+//
+//         WideSlice {
+//             slices: &mut self.ptr,
+//             len: len,
+//         }
+//     }
+// }
 
 fn main() {
     let mut mem = HeapMem::new(2, 4);
     println!("mem: {:?}", mem);
 
-    let ws = mem.to_wideslice();
+    let ws = mem.into_wideslice();
     println!("ws: {:?}", ws);
 
     ws.slices.rotate_right(1);
 
     println!("ws: {:?}", ws);
 
-    println!("s1: {:?}", ws.to_slice(0));
-    println!("s2: {:?}", ws.to_slice(1));
-    println!("s3: {:?}", ws.to_slice(2));
-    println!("s4: {:?}", ws.to_slice(3));
+    println!("s1: {:?}", ws.as_slice(0));
+    println!("s2: {:?}", ws.as_slice(1));
+    println!("s3: {:?}", ws.as_slice(2));
+    println!("s4: {:?}", ws.as_slice(3));
 
-    println!("");
-    println!("");
-    println!("");
+    // println!("");
+    // println!("");
+    // println!("");
 
-    let mut mem = StackMem::new();
-    println!("mem: {:?}", mem);
+    // let mut mem = StackMem::new();
+    // println!("mem: {:?}", mem);
 
-    let ws = mem.to_wideslice();
-    println!("ws: {:?}", ws);
+    // let ws = mem.into_wideslice();
+    // println!("ws: {:?}", ws);
 
-    ws.slices.rotate_right(1);
+    // ws.slices.rotate_right(1);
 
-    println!("ws: {:?}", ws);
+    // println!("ws: {:?}", ws);
 
-    println!("s1: {:?}", ws.to_slice(0));
-    println!("s2: {:?}", ws.to_slice(1));
-    println!("s3: {:?}", ws.to_slice(2));
-    println!("s4: {:?}", ws.to_slice(3));
+    // println!("s1: {:?}", ws.as_slice(0));
+    // println!("s2: {:?}", ws.as_slice(1));
+    // println!("s3: {:?}", ws.as_slice(2));
+    // println!("s4: {:?}", ws.as_slice(3));
 }
