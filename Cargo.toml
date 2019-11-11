@@ -4,6 +4,7 @@ authors = ["Emil Fresk <emil.fresk@gmail.com>",
 categories = ["embedded", "nonlinear", "optimization"]
 keywords = ["embedded", "optimization", "bfgs", "lbfgs"]
 description = "A Rust implementation of the L-BFGS algorithm"
+repository = "https://github.com/korken89/lbfgs-rs"
 documentation = "https://docs.rs/lbfgs"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
