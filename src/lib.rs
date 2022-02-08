@@ -302,7 +302,11 @@ impl Lbfgs {
         self.rho.rotate_right(1);
 
         // Update the Hessian estimate
-        self.gamma = (1.0 / self.rho[0]) / vec_ops::inner_product(&self.y[0], &self.y[0]);
+        let gamma = (1.0 / self.rho[0]) / vec_ops::inner_product(&self.y[0], &self.y[0]);
+        if gamma.is_finite() {
+            // Only update the gamma if we could compute a Hessian estimate
+            self.gamma = gamma;
+        }
 
         // Update the indexes and number of active, -1 comes from the temporary area used in
         // the end of s and y to check if they are valid
