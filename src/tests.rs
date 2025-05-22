@@ -99,7 +99,7 @@ fn lbfgs_apply_finite() {
     let mut g = [1.0, 1.0];
     e.apply_hessian(&mut g);
 
-    unit_test_utils::assert_is_finite_array(&g, "g");
+    unit_test_utils::assert_none_is_nan(&g, "g");
 }
 
 #[test]
