@@ -1,7 +1,11 @@
 [package]
 authors = ["Emil Fresk <emil.fresk@gmail.com>",
            "Pantelis Sopasakis <https://alphaville.github.io>"]
-categories = ["embedded", "nonlinear", "optimization"]
+categories = [
+    "embedded",
+    "algorithms",
+    "science::robotics",
+    "simulation",]
 keywords = ["embedded", "optimization", "bfgs", "lbfgs"]
 description = "A Rust implementation of the L-BFGS algorithm"
 repository = "https://github.com/korken89/lbfgs-rs"
@@ -9,7 +13,7 @@ documentation = "https://docs.rs/lbfgs"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 name = "lbfgs"
-version = "0.2.2"
+version = "0.2.1"
 edition = "2018"
 
 [dependencies]
