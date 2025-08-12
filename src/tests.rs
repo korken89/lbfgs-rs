@@ -3,44 +3,44 @@ use crate::*;
 #[test]
 #[should_panic]
 fn lbfgs_panic_zero_n() {
-    let mut _e = Lbfgs::new(0, 1);
+    let mut _e = Lbfgs::<f64>::new(0, 1);
 }
 
 #[test]
 #[should_panic]
 fn lbfgs_panic_zero_mem() {
-    let mut _e = Lbfgs::new(1, 0);
+    let mut _e = Lbfgs::<f64>::new(1, 0);
 }
 
 #[test]
 #[should_panic]
 fn lbfgs_panic_apply_size_grad() {
-    let mut e = Lbfgs::new(5, 5);
+    let mut e = Lbfgs::<f64>::new(5, 5);
     e.update_hessian(&[0.0; 4], &[0.0; 5]);
 }
 
 #[test]
 #[should_panic]
 fn lbfgs_panic_apply_state() {
-    let mut e = Lbfgs::new(5, 5);
+    let mut e = Lbfgs::<f64>::new(5, 5);
     e.update_hessian(&[0.0; 5], &[0.0; 4]);
 }
 
 #[test]
 #[should_panic]
 fn lbfgs_panic_cbfgs_alpha() {
-    let mut _e = Lbfgs::new(5, 5).with_cbfgs_alpha(-1.0);
+    let mut _e = Lbfgs::<f64>::new(5, 5).with_cbfgs_alpha(-1.0);
 }
 
 #[test]
 #[should_panic]
 fn lbfgs_panic_cbfgs_epsilon() {
-    let mut _e = Lbfgs::new(5, 5).with_cbfgs_epsilon(-1.0);
+    let mut _e = Lbfgs::<f64>::new(5, 5).with_cbfgs_epsilon(-1.0);
 }
 
 #[test]
 fn lbfgs_buffer_storage() {
-    let mut e = Lbfgs::new(2, 3);
+    let mut e = Lbfgs::<f64>::new(2, 3);
     e.update_hessian(&[1.0, 1.0], &[1.5, 1.5]);
     assert_eq!(e.active_size, 0);
 
@@ -92,8 +92,61 @@ fn lbfgs_buffer_storage() {
 }
 
 #[test]
+fn lbfgs_buffer_storage_f32() {
+    let mut e = Lbfgs::<f32>::new(2, 3);
+    e.update_hessian(&[1.0f32, 1.0f32], &[1.5f32, 1.5f32]);
+    assert_eq!(e.active_size, 0);
+
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&[2.0f32, 2.0f32], &[2.5f32, 2.5f32])
+    );
+    assert_eq!(e.active_size, 1);
+    assert_eq!(&e.s[0], &[1.0f32, 1.0f32]);
+
+    assert_eq!(&e.y[0], &[1.0f32, 1.0f32]);
+
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&[-3.0f32, -3.0f32], &[-3.5f32, -3.5f32])
+    );
+    assert_eq!(e.active_size, 2);
+    assert_eq!(&e.s[0], &[-6.0f32, -6.0f32]);
+    assert_eq!(&e.s[1], &[1.0f32, 1.0f32]);
+
+    assert_eq!(&e.y[0], &[-5.0f32, -5.0f32]);
+    assert_eq!(&e.y[1], &[1.0f32, 1.0f32]);
+
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&[-4.0f32, -4.0f32], &[-4.5f32, -4.5f32])
+    );
+    assert_eq!(e.active_size, 3);
+    assert_eq!(&e.s[0], &[-1.0f32, -1.0f32]);
+    assert_eq!(&e.s[1], &[-6.0f32, -6.0f32]);
+    assert_eq!(&e.s[2], &[1.0f32, 1.0f32]);
+
+    assert_eq!(&e.y[0], &[-1.0f32, -1.0f32]);
+    assert_eq!(&e.y[1], &[-5.0f32, -5.0f32]);
+    assert_eq!(&e.y[2], &[1.0f32, 1.0f32]);
+
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&[5.0f32, 5.0f32], &[5.5f32, 5.5f32])
+    );
+    assert_eq!(e.active_size, 3);
+    assert_eq!(&e.s[0], &[10.0f32, 10.0f32]);
+    assert_eq!(&e.s[1], &[-1.0f32, -1.0f32]);
+    assert_eq!(&e.s[2], &[-6.0f32, -6.0f32]);
+
+    assert_eq!(&e.y[0], &[9.0f32, 9.0f32]);
+    assert_eq!(&e.y[1], &[-1.0f32, -1.0f32]);
+    assert_eq!(&e.y[2], &[-5.0f32, -5.0f32]);
+}
+
+#[test]
 fn lbfgs_apply_finite() {
-    let mut e = Lbfgs::new(2, 3);
+    let mut e = Lbfgs::<f64>::new(2, 3);
     e.update_hessian(&[1.0, 1.0], &[1.5, 1.5]);
 
     let mut g = [1.0, 1.0];
@@ -104,7 +157,7 @@ fn lbfgs_apply_finite() {
 
 #[test]
 fn correctneess_buff_empty() {
-    let mut e = Lbfgs::new(3, 3);
+    let mut e = Lbfgs::<f64>::new(3, 3);
     let mut g = [-3.1, 1.5, 2.1];
     assert_eq!(
         UpdateStatus::UpdateOk,
@@ -117,7 +170,7 @@ fn correctneess_buff_empty() {
 
 #[test]
 fn correctneess_buff_1() {
-    let mut e = Lbfgs::new(3, 3);
+    let mut e = Lbfgs::<f64>::new(3, 3);
     let mut g = [-3.1, 1.5, 2.1];
 
     assert_eq!(
@@ -141,7 +194,7 @@ fn correctneess_buff_1() {
 
 #[test]
 fn correctneess_buff_2() {
-    let mut e = Lbfgs::new(3, 3);
+    let mut e = Lbfgs::<f64>::new(3, 3);
     let mut g = [-3.1, 1.5, 2.1];
 
     assert_eq!(
@@ -166,7 +219,7 @@ fn correctneess_buff_2() {
 
 #[test]
 fn correctneess_buff_overfull() {
-    let mut e = Lbfgs::new(3, 3);
+    let mut e = Lbfgs::<f64>::new(3, 3);
     let mut g = [-2.0, 0.2, -0.3];
 
     assert_eq!(
@@ -225,8 +278,68 @@ fn correctneess_buff_overfull() {
 }
 
 #[test]
+fn correctneess_buff_overfull_f32() {
+    let mut e = Lbfgs::<f32>::new(3, 3);
+    let mut g = [-2.0f32, 0.2f32, -0.3f32];
+
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0])
+    );
+    assert_eq!(
+        UpdateStatus::Rejection,
+        e.update_hessian(
+            &[-0.5f32, 0.6f32, -1.2f32],
+            &[0.419058177461747f32, 0.869843029576958f32, 0.260313940846084f32]
+        )
+    );
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&[-0.5f32, 0.6f32, -1.2f32], &[0.1f32, 0.2f32, -0.3f32])
+    );
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&[-0.75f32, 0.9f32, -1.9f32], &[0.19f32, 0.19f32, -0.44f32])
+    );
+
+    for _i in 1..10 {
+        assert_eq!(
+            UpdateStatus::Rejection,
+            e.update_hessian(
+                &[1.0f32, 2.0f32, 3.0f32],
+                &[-0.534522483824849f32, 0.774541920588438f32, -0.338187119117343f32]
+            )
+        );
+    }
+
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&[-2.25f32, 3.5f32, -3.1f32], &[0.39f32, 0.39f32, -0.84f32])
+    );
+
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&[-3.75f32, 6.3f32, -4.3f32], &[0.49f32, 0.59f32, -1.24f32])
+    );
+
+    e.apply_hessian(&mut g);
+
+    println!("{:#.3?}", e);
+
+    let gamma_correct = 0.077189939288812f32;
+    let alpha_correct = [-0.044943820224719f32, -0.295345104333868f32, -1.899418829910887f32];
+    let rho_correct = [1.123595505617978f32, 1.428571428571429f32, 13.793103448275861f32];
+    let dir_correct = [-0.933604237447365f32, -0.078865807539102f32, 1.016318412551302f32];
+
+    unit_test_utils::assert_nearly_equal(gamma_correct, e.gamma, 1e-5, 1e-5, "gamma");
+    unit_test_utils::assert_nearly_equal_array(&alpha_correct, &e.alpha, 1e-5, 1e-5, "alpha");
+    unit_test_utils::assert_nearly_equal_array(&rho_correct, &e.rho[0..3], 1e-5, 1e-5, "rho");
+    unit_test_utils::assert_nearly_equal_array(&dir_correct, &g, 1e-5, 1e-5, "direction");
+}
+
+#[test]
 fn correctneess_reset() {
-    let mut e = Lbfgs::new(3, 3);
+    let mut e = Lbfgs::<f64>::new(3, 3);
     let mut g = [-3.1, 1.5, 2.1];
 
     assert_eq!(
@@ -270,7 +383,7 @@ fn correctneess_reset() {
 fn reject_perpendicular_sy() {
     let n = 3;
     let mem = 5;
-    let mut lbfgs = Lbfgs::new(n, mem).with_sy_epsilon(1e-8);
+    let mut lbfgs = Lbfgs::<f64>::new(n, mem).with_sy_epsilon(1e-8);
 
     assert_eq!(
         UpdateStatus::UpdateOk,
@@ -312,7 +425,7 @@ fn reject_perpendicular_sy() {
 fn reject_norm_s_zero() {
     let n = 3;
     let mem = 5;
-    let mut lbfgs = Lbfgs::new(n, mem);
+    let mut lbfgs = Lbfgs::<f64>::new(n, mem);
 
     assert_eq!(
         UpdateStatus::UpdateOk,
@@ -336,7 +449,7 @@ fn reject_norm_s_zero() {
 fn reject_cfbs_condition() {
     let n = 3;
     let mem = 5;
-    let mut lbfgs = Lbfgs::new(n, mem)
+    let mut lbfgs = Lbfgs::<f64>::new(n, mem)
         .with_sy_epsilon(1e-8)
         .with_cbfgs_alpha(1.0)
         .with_cbfgs_epsilon(1e-4);
