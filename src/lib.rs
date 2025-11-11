@@ -75,8 +75,11 @@ mod tests;
 /// Precision is a trait extending `num_traits::Float` to provide type-specific constants
 /// (the default sy tolerance).
 pub trait LbfgsPrecision: Float {
+    /// Default s-y tolerance for L-BFGS updates
     const DEFAULT_SY_TOLERANCE: Self;
+    /// Absolute tolerance (e.g., for unit tests)
     const ABS_TOL: Self;
+    /// Relative tolerance (e.g., for unit tests)
     const REL_TOL: Self;
 }
 
