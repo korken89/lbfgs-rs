@@ -1,18 +1,4 @@
 //! # lbfgs
-//!
-//! The `L-BFGS` is an Hessian approximation algorithm commonly used by optimization algorithms in
-//! the family of quasi-Newton methods that approximates the Broyden–Fletcher–Goldfarb–Shanno (BFGS)
-//! algorithm using a limited amount of computer memory. In this implementation extra condition are
-//! added to have convergence properties for non-convex problems, based on the [C-BFGS conditions],
-//! together with basic checks on the local curvature.
-//!
-//! [C-BFGS conditions]: https://pdfs.semanticscholar.org/5b90/45b7d27a53b1e3c3b3f0dc6aab908cc3e0b2.pdf
-//!
-//! # Example
-//!
-//! Create a fully featured instance of the L-BFGS algorithm with curvature and C-BFGS checks
-//! enabled.
-//!
 //! ```
 //! use lbfgs::*;
 //!
@@ -86,8 +72,19 @@ pub mod vec_ops;
 #[cfg(test)]
 mod tests;
 
-/// The default `sy_epsilon`
-pub const DEFAULT_SY_EPSILON: f64 = 1e-10;
+/// Precision is a trait extending `num_traits::Float` to provide type-specific constants
+/// (the default sy tolerance).
+pub trait LbfgsPrecision: Float {
+    const DEFAULT_SY_TOLERANCE: Self;
+}
+
+impl LbfgsPrecision for f64 {
+    const DEFAULT_SY_TOLERANCE: f64 = 1e-10;
+}
+
+impl LbfgsPrecision for f32 {
+    const DEFAULT_SY_TOLERANCE: f32 = 1e-8;
+}
 
 /// LBFGS Buffer
 ///
@@ -100,7 +97,10 @@ pub const DEFAULT_SY_EPSILON: f64 = 1e-10;
 ///
 ///
 #[derive(Debug)]
-pub struct Lbfgs<T = f64> where T: Float + std::iter::Sum<T> {
+pub struct Lbfgs<T = f64>
+where
+    T: LbfgsPrecision + std::iter::Sum<T>,
+{
     /// The number of vectors in s and y that are currently in use
     active_size: usize,
     /// Used to warm-start the Hessian estimation with H_0 = gamma * I
@@ -136,7 +136,10 @@ pub enum UpdateStatus {
     Rejection,
 }
 
-impl<T> Lbfgs<T> where T: Float + std::iter::Sum<T> {
+impl<T> Lbfgs<T>
+where
+    T: LbfgsPrecision + std::iter::Sum<T> ,
+{
     /// Create a new L-BFGS instance with a specific problem and L-BFGS buffer size
     pub fn new(problem_size: usize, buffer_size: usize) -> Lbfgs<T> {
         assert!(problem_size > 0);
@@ -151,7 +154,7 @@ impl<T> Lbfgs<T> where T: Float + std::iter::Sum<T> {
             rho: vec![T::zero(); buffer_size + 1],
             cbfgs_alpha: T::zero(),
             cbfgs_epsilon: T::zero(),
-            sy_epsilon: T::from(DEFAULT_SY_EPSILON).unwrap(),
+            sy_epsilon: T::DEFAULT_SY_TOLERANCE,
             old_state: vec![T::zero(); problem_size],
             old_g: vec![T::zero(); problem_size],
             first_old: true,
@@ -168,7 +171,7 @@ impl<T> Lbfgs<T> where T: Float + std::iter::Sum<T> {
 
     /// Update the default C-BFGS epsilon
     pub fn with_cbfgs_epsilon(mut self, epsilon: T) -> Self {
-        assert!(epsilon >= T::zero());
+        assert!(epsilon >= T::zero(), "sy_epsilon must be non-negative");
 
         self.cbfgs_epsilon = epsilon;
         self
@@ -176,7 +179,7 @@ impl<T> Lbfgs<T> where T: Float + std::iter::Sum<T> {
 
     /// Update the default sy_epsilon
     pub fn with_sy_epsilon(mut self, sy_epsilon: T) -> Self {
-        assert!(sy_epsilon >= T::zero());
+        assert!(sy_epsilon >= T::zero(), "sy_epsilon must be non-negative");
 
         self.sy_epsilon = sy_epsilon;
         self
