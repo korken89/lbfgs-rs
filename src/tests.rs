@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use crate::*;
 
 // Casts f64 to T
@@ -63,57 +61,65 @@ fn lbfgs_panic_cbfgs_epsilon() {
     let mut _e = Lbfgs::<f64>::new(5, 5).with_cbfgs_epsilon(-1.0);
 }
 
-#[test]
-fn lbfgs_buffer_storage() {
-    let mut e = Lbfgs::<f64>::new(2, 3);
-    e.update_hessian(&[1.0, 1.0], &[1.5, 1.5]);
+fn _lbfgs_buffer_storage<T>()
+where
+    T: LbfgsPrecision + std::iter::Sum<T> + std::fmt::Debug,
+{
+    let mut e = Lbfgs::<T>::new(2, 3);
+    e.update_hessian(&ca::<T, 2>(&[1.0, 1.0]), &ca::<T, 2>(&[1.5, 1.5]));
     assert_eq!(e.active_size, 0);
 
     assert_eq!(
         UpdateStatus::UpdateOk,
-        e.update_hessian(&[2.0, 2.0], &[2.5, 2.5])
+        e.update_hessian(&ca::<T, 2>(&[2.0, 2.0]), &ca::<T, 2>(&[2.5, 2.5]))
     );
-    assert_eq!(e.active_size, 1);
-    assert_eq!(&e.s[0], &[1.0, 1.0]);
+    assert_eq!(e.active_size, 1, "e.active_size is not 1");
+    assert_eq!(&e.s[0], &ca::<T, 2>(&[1.0, 1.0]), "e.s[0] is not correct");
 
-    assert_eq!(&e.y[0], &[1.0, 1.0]);
+    assert_eq!(&e.y[0], &ca::<T, 2>(&[1.0, 1.0]));
 
     assert_eq!(
         UpdateStatus::UpdateOk,
-        e.update_hessian(&[-3.0, -3.0], &[-3.5, -3.5])
+        e.update_hessian(&ca::<T, 2>(&[-3.0, -3.0]), &ca::<T, 2>(&[-3.5, -3.5]))
     );
     assert_eq!(e.active_size, 2);
-    assert_eq!(&e.s[0], &[-6.0, -6.0]);
-    assert_eq!(&e.s[1], &[1.0, 1.0]);
+    assert_eq!(&e.s[0], &ca::<T, 2>(&[-6.0, -6.0]));
+    assert_eq!(&e.s[1], &ca::<T, 2>(&[1.0, 1.0]));
 
-    assert_eq!(&e.y[0], &[-5.0, -5.0]);
-    assert_eq!(&e.y[1], &[1.0, 1.0]);
-
-    assert_eq!(
-        UpdateStatus::UpdateOk,
-        e.update_hessian(&[-4.0, -4.0], &[-4.5, -4.5])
-    );
-    assert_eq!(e.active_size, 3);
-    assert_eq!(&e.s[0], &[-1.0, -1.0]);
-    assert_eq!(&e.s[1], &[-6.0, -6.0]);
-    assert_eq!(&e.s[2], &[1.0, 1.0]);
-
-    assert_eq!(&e.y[0], &[-1.0, -1.0]);
-    assert_eq!(&e.y[1], &[-5.0, -5.0]);
-    assert_eq!(&e.y[2], &[1.0, 1.0]);
+    assert_eq!(&e.y[0], &ca::<T, 2>(&[-5.0, -5.0]));
+    assert_eq!(&e.y[1], &ca::<T, 2>(&[1.0, 1.0]));
 
     assert_eq!(
         UpdateStatus::UpdateOk,
-        e.update_hessian(&[5.0, 5.0], &[5.5, 5.5])
+        e.update_hessian(&ca::<T, 2>(&[-4.0, -4.0]), &ca::<T, 2>(&[-4.5, -4.5]))
     );
     assert_eq!(e.active_size, 3);
-    assert_eq!(&e.s[0], &[10.0, 10.0]);
-    assert_eq!(&e.s[1], &[-1.0, -1.0]);
-    assert_eq!(&e.s[2], &[-6.0, -6.0]);
+    assert_eq!(&e.s[0], &ca::<T, 2>(&[-1.0, -1.0]));
+    assert_eq!(&e.s[1], &ca::<T, 2>(&[-6.0, -6.0]));
+    assert_eq!(&e.s[2], &ca::<T, 2>(&[1.0, 1.0]));
 
-    assert_eq!(&e.y[0], &[9.0, 9.0]);
-    assert_eq!(&e.y[1], &[-1.0, -1.0]);
-    assert_eq!(&e.y[2], &[-5.0, -5.0]);
+    assert_eq!(&e.y[0], &ca::<T, 2>(&[-1.0, -1.0]));
+    assert_eq!(&e.y[1], &ca::<T, 2>(&[-5.0, -5.0]));
+    assert_eq!(&e.y[2], &ca::<T, 2>(&[1.0, 1.0]));
+
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&ca::<T, 2>(&[5.0, 5.0]), &ca::<T, 2>(&[5.5, 5.5]))
+    );
+    assert_eq!(e.active_size, 3);
+    assert_eq!(&e.s[0], &ca::<T, 2>(&[10.0, 10.0]));
+    assert_eq!(&e.s[1], &ca::<T, 2>(&[-1.0, -1.0]));
+    assert_eq!(&e.s[2], &ca::<T, 2>(&[-6.0, -6.0]));
+
+    assert_eq!(&e.y[0], &ca::<T, 2>(&[9.0, 9.0]));
+    assert_eq!(&e.y[1], &ca::<T, 2>(&[-1.0, -1.0]));
+    assert_eq!(&e.y[2], &ca::<T, 2>(&[-5.0, -5.0]));
+}
+
+#[test]
+fn lbfgs_buffer_storage() {
+    _lbfgs_buffer_storage::<f64>();
+    _lbfgs_buffer_storage::<f32>();
 }
 
 #[test]
