@@ -76,15 +76,22 @@ mod tests;
 /// (the default sy tolerance).
 pub trait LbfgsPrecision: Float {
     const DEFAULT_SY_TOLERANCE: Self;
+    const ABS_TOL: Self;
+    const REL_TOL: Self;
 }
 
 impl LbfgsPrecision for f64 {
     const DEFAULT_SY_TOLERANCE: f64 = 1e-10;
+    const ABS_TOL: f64 = 1e-8;
+    const REL_TOL: f64 = 1e-10;
 }
 
 impl LbfgsPrecision for f32 {
     const DEFAULT_SY_TOLERANCE: f32 = 1e-8;
+    const ABS_TOL: f32 = 1e-6;
+    const REL_TOL: f32 = 1e-6;
 }
+
 
 /// LBFGS Buffer
 ///

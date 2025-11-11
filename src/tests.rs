@@ -380,48 +380,57 @@ fn correctneess_buff_overfull_f32() {
     unit_test_utils::assert_nearly_equal_array(&dir_correct, &g, 1e-5, 1e-5, "direction");
 }
 
-#[test]
-fn correctneess_reset() {
-    let mut e = Lbfgs::<f64>::new(3, 3);
-    let mut g = [-3.1, 1.5, 2.1];
+
+fn _correctneess_reset<T>() 
+where
+    T: LbfgsPrecision + std::iter::Sum<T>,
+{
+    let mut e = Lbfgs::<T>::new(3, 3);
+    let mut g = ca::<T, 3>(&[-3.1, 1.5, 2.1]);
 
     assert_eq!(
         UpdateStatus::UpdateOk,
-        e.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0])
+        e.update_hessian(&ca::<T, 3>(&[0.0, 0.0, 0.0]), &ca::<T, 3>(&[0.0, 0.0, 0.0]))
     );
     assert_eq!(
         UpdateStatus::UpdateOk,
-        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3])
+        e.update_hessian(&ca::<T, 3>(&[-0.5, 0.6, -1.2]), &ca::<T, 3>(&[0.1, 0.2, -0.3]))
     );
     e.apply_hessian(&mut g);
 
-    let correct_dir = [-1.100601247872944, -0.086568349404424, 0.948633011911515];
-    let alpha_correct = -1.488372093023256;
-    let rho_correct = 2.325581395348837;
+    let correct_dir = ca::<T, 3>(&[-1.100601247872944, -0.086568349404424, 0.948633011911515]);
+    let alpha_correct = c::<T>(-1.488372093023256);
+    let rho_correct = c::<T>(2.325581395348837);
 
-    unit_test_utils::assert_nearly_equal(alpha_correct, e.alpha[0], 1e-8, 1e-10, "alpha");
-    unit_test_utils::assert_nearly_equal(rho_correct, e.rho[0], 1e-8, 1e-10, "rho");
-    unit_test_utils::assert_nearly_equal_array(&correct_dir, &g, 1e-8, 1e-10, "direction");
+    unit_test_utils::assert_nearly_equal(alpha_correct, e.alpha[0], T::REL_TOL, T::ABS_TOL, "alpha");
+    unit_test_utils::assert_nearly_equal(rho_correct, e.rho[0], T::REL_TOL, T::ABS_TOL, "rho");
+    unit_test_utils::assert_nearly_equal_array(&correct_dir, &g, T::REL_TOL, T::ABS_TOL, "direction");
 
     e.reset();
 
-    let mut g = [-3.1, 1.5, 2.1];
+    let mut g = ca::<T, 3>(&[-3.1, 1.5, 2.1]);
 
     assert_eq!(
         UpdateStatus::UpdateOk,
-        e.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0])
+        e.update_hessian(&ca::<T, 3>(&[0.0, 0.0, 0.0]), &ca::<T, 3>(&[0.0, 0.0, 0.0]))
     );
     assert_eq!(
         UpdateStatus::UpdateOk,
-        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3])
+        e.update_hessian(&ca::<T, 3>(&[-0.5, 0.6, -1.2]), &ca::<T, 3>(&[0.1, 0.2, -0.3]))
     );
     e.apply_hessian(&mut g);
 
-    unit_test_utils::assert_nearly_equal(alpha_correct, e.alpha[0], 1e-8, 1e-10, "alpha");
-    unit_test_utils::assert_nearly_equal(rho_correct, e.rho[0], 1e-8, 1e-10, "rho");
-    unit_test_utils::assert_nearly_equal_array(&correct_dir, &g, 1e-8, 1e-10, "direction");
+
+    unit_test_utils::assert_nearly_equal(alpha_correct, e.alpha[0], T::REL_TOL, T::ABS_TOL, "alpha");
+    unit_test_utils::assert_nearly_equal(rho_correct, e.rho[0], T::REL_TOL, T::ABS_TOL, "rho");
+    unit_test_utils::assert_nearly_equal_array(&correct_dir, &g, T::REL_TOL, T::ABS_TOL, "direction");
 }
 
+#[test]
+fn correctneess_reset() {
+    _correctneess_reset::<f64>();
+    _correctneess_reset::<f32>();
+}
 
 fn _reject_perpendicular_sy<T>() 
 where
@@ -429,7 +438,7 @@ where
 {
     let n = 3;
     let mem = 5;
-    let mut lbfgs = Lbfgs::<T>::new(n, mem).with_sy_epsilon(c(1e-8));
+    let mut lbfgs = Lbfgs::<T>::new(n, mem);
 
     assert_eq!(
         UpdateStatus::UpdateOk,
