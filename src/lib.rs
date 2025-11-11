@@ -88,10 +88,9 @@ impl LbfgsPrecision for f64 {
 
 impl LbfgsPrecision for f32 {
     const DEFAULT_SY_TOLERANCE: f32 = 1e-8;
-    const ABS_TOL: f32 = 1e-6;
-    const REL_TOL: f32 = 1e-6;
+    const ABS_TOL: f32 = 1e-5;
+    const REL_TOL: f32 = 1e-5;
 }
-
 
 /// LBFGS Buffer
 ///
@@ -145,7 +144,7 @@ pub enum UpdateStatus {
 
 impl<T> Lbfgs<T>
 where
-    T: LbfgsPrecision + std::iter::Sum<T> ,
+    T: LbfgsPrecision + std::iter::Sum<T>,
 {
     /// Create a new L-BFGS instance with a specific problem and L-BFGS buffer size
     pub fn new(problem_size: usize, buffer_size: usize) -> Lbfgs<T> {
