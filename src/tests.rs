@@ -75,8 +75,7 @@ where
     );
     assert_eq!(e.active_size, 1, "e.active_size is not 1");
     assert_eq!(&e.s[0], &ca::<T, 2>(&[1.0, 1.0]), "e.s[0] is not correct");
-
-    assert_eq!(&e.y[0], &ca::<T, 2>(&[1.0, 1.0]));
+    assert_eq!(&e.y[0], &ca::<T, 2>(&[1.0, 1.0]), "e.y[0] is not correct");
 
     assert_eq!(
         UpdateStatus::UpdateOk,
@@ -123,61 +122,8 @@ fn lbfgs_buffer_storage() {
 }
 
 #[test]
-fn lbfgs_buffer_storage_f32() {
-    let mut e = Lbfgs::<f32>::new(2, 3);
-    e.update_hessian(&[1.0f32, 1.0f32], &[1.5f32, 1.5f32]);
-    assert_eq!(e.active_size, 0);
-
-    assert_eq!(
-        UpdateStatus::UpdateOk,
-        e.update_hessian(&[2.0f32, 2.0f32], &[2.5f32, 2.5f32])
-    );
-    assert_eq!(e.active_size, 1);
-    assert_eq!(&e.s[0], &[1.0f32, 1.0f32]);
-
-    assert_eq!(&e.y[0], &[1.0f32, 1.0f32]);
-
-    assert_eq!(
-        UpdateStatus::UpdateOk,
-        e.update_hessian(&[-3.0f32, -3.0f32], &[-3.5f32, -3.5f32])
-    );
-    assert_eq!(e.active_size, 2);
-    assert_eq!(&e.s[0], &[-6.0f32, -6.0f32]);
-    assert_eq!(&e.s[1], &[1.0f32, 1.0f32]);
-
-    assert_eq!(&e.y[0], &[-5.0f32, -5.0f32]);
-    assert_eq!(&e.y[1], &[1.0f32, 1.0f32]);
-
-    assert_eq!(
-        UpdateStatus::UpdateOk,
-        e.update_hessian(&[-4.0f32, -4.0f32], &[-4.5f32, -4.5f32])
-    );
-    assert_eq!(e.active_size, 3);
-    assert_eq!(&e.s[0], &[-1.0f32, -1.0f32]);
-    assert_eq!(&e.s[1], &[-6.0f32, -6.0f32]);
-    assert_eq!(&e.s[2], &[1.0f32, 1.0f32]);
-
-    assert_eq!(&e.y[0], &[-1.0f32, -1.0f32]);
-    assert_eq!(&e.y[1], &[-5.0f32, -5.0f32]);
-    assert_eq!(&e.y[2], &[1.0f32, 1.0f32]);
-
-    assert_eq!(
-        UpdateStatus::UpdateOk,
-        e.update_hessian(&[5.0f32, 5.0f32], &[5.5f32, 5.5f32])
-    );
-    assert_eq!(e.active_size, 3);
-    assert_eq!(&e.s[0], &[10.0f32, 10.0f32]);
-    assert_eq!(&e.s[1], &[-1.0f32, -1.0f32]);
-    assert_eq!(&e.s[2], &[-6.0f32, -6.0f32]);
-
-    assert_eq!(&e.y[0], &[9.0f32, 9.0f32]);
-    assert_eq!(&e.y[1], &[-1.0f32, -1.0f32]);
-    assert_eq!(&e.y[2], &[-5.0f32, -5.0f32]);
-}
-
-#[test]
 fn lbfgs_apply_finite() {
-    let mut e = Lbfgs::<f64>::new(2, 3);
+    let mut e = Lbfgs::new(2, 3);
     e.update_hessian(&[1.0, 1.0], &[1.5, 1.5]);
 
     let mut g = [1.0, 1.0];
@@ -188,7 +134,7 @@ fn lbfgs_apply_finite() {
 
 #[test]
 fn correctneess_buff_empty() {
-    let mut e = Lbfgs::<f64>::new(3, 3);
+    let mut e = Lbfgs::new(3, 3);
     let mut g = [-3.1, 1.5, 2.1];
     assert_eq!(
         UpdateStatus::UpdateOk,
@@ -199,53 +145,68 @@ fn correctneess_buff_empty() {
     unit_test_utils::assert_nearly_equal_array(&correct_dir, &g, 1e-8, 1e-10, "direction");
 }
 
-#[test]
-fn correctneess_buff_1() {
-    let mut e = Lbfgs::<f64>::new(3, 3);
-    let mut g = [-3.1, 1.5, 2.1];
+fn _correctneess_buff_1<T>()
+where T: LbfgsPrecision + std::iter::Sum<T>,
+{
+    let mut e = Lbfgs::<T>::new(3, 3);
+    let mut g = ca::<T, 3>(&[-3.1, 1.5, 2.1]);
 
     assert_eq!(
         UpdateStatus::UpdateOk,
-        e.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0])
+        e.update_hessian(&ca::<T, 3>(&[0.0, 0.0, 0.0]), &ca::<T, 3>(&[0.0, 0.0, 0.0]))
     );
     assert_eq!(
         UpdateStatus::UpdateOk,
-        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3])
+        e.update_hessian(&ca::<T, 3>(&[-0.5, 0.6, -1.2]), &ca::<T, 3>(&[0.1, 0.2, -0.3]))
     );
     e.apply_hessian(&mut g);
 
-    let correct_dir = [-1.100601247872944, -0.086568349404424, 0.948633011911515];
-    let alpha_correct = -1.488372093023256;
-    let rho_correct = 2.325581395348837;
+    let correct_dir = ca::<T, 3>(&[-1.100601247872944, -0.086568349404424, 0.948633011911515]);
+    let alpha_correct = c::<T>(-1.488372093023256);
+    let rho_correct = c::<T>(2.325581395348837);
 
-    unit_test_utils::assert_nearly_equal(alpha_correct, e.alpha[0], 1e-8, 1e-10, "alpha");
-    unit_test_utils::assert_nearly_equal(rho_correct, e.rho[0], 1e-8, 1e-10, "rho");
-    unit_test_utils::assert_nearly_equal_array(&correct_dir, &g, 1e-8, 1e-10, "direction");
+    unit_test_utils::assert_nearly_equal(alpha_correct, e.alpha[0], T::REL_TOL, T::ABS_TOL, "alpha");
+    unit_test_utils::assert_nearly_equal(rho_correct, e.rho[0], T::REL_TOL, T::ABS_TOL, "rho");
+    unit_test_utils::assert_nearly_equal_array(&correct_dir, &g, T::REL_TOL, T::ABS_TOL, "direction");
+}
+
+#[test]
+fn correctneess_buff_1() {
+    _correctneess_buff_1::<f64>();
+    _correctneess_buff_1::<f32>();
+}
+
+
+fn _correctneess_buff_2<T>()
+where 
+T: LbfgsPrecision + std::iter::Sum<T>,{
+    let mut e = Lbfgs::<T>::new(3, 3);
+    let mut g = ca::<T, 3>(&[-3.1, 1.5, 2.1]);
+
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&ca::<T, 3>(&[0.0, 0.0, 0.0]), &ca::<T, 3>(&[0.0, 0.0, 0.0]))
+    );
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&ca::<T, 3>(&[-0.5, 0.6, -1.2]), &ca::<T, 3>(&[0.1, 0.2, -0.3]))
+    );
+    assert_eq!(
+        UpdateStatus::UpdateOk,
+        e.update_hessian(&ca::<T, 3>(&[-0.75, 0.9, -1.9]), &ca::<T, 3>(&[0.19, 0.19, -0.44]))
+    );
+
+    e.apply_hessian(&mut g);
+
+    let correct_dir = ca::<T, 3>(&[-1.814749861477524, 0.895232314736337, 1.871795942557546]);
+
+    unit_test_utils::assert_nearly_equal_array(&correct_dir, &g, T::REL_TOL, T::ABS_TOL, "direction");
 }
 
 #[test]
 fn correctneess_buff_2() {
-    let mut e = Lbfgs::<f64>::new(3, 3);
-    let mut g = [-3.1, 1.5, 2.1];
-
-    assert_eq!(
-        UpdateStatus::UpdateOk,
-        e.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0])
-    );
-    assert_eq!(
-        UpdateStatus::UpdateOk,
-        e.update_hessian(&[-0.5, 0.6, -1.2], &[0.1, 0.2, -0.3])
-    );
-    assert_eq!(
-        UpdateStatus::UpdateOk,
-        e.update_hessian(&[-0.75, 0.9, -1.9], &[0.19, 0.19, -0.44])
-    );
-
-    e.apply_hessian(&mut g);
-
-    let correct_dir = [-1.814749861477524, 0.895232314736337, 1.871795942557546];
-
-    unit_test_utils::assert_nearly_equal_array(&correct_dir, &g, 1e-8, 1e-10, "direction");
+    _correctneess_buff_2::<f64>();
+    _correctneess_buff_2::<f32>();
 }
 
 fn _correctneess_buff_overfull<T>()
