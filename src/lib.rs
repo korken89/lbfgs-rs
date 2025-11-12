@@ -151,8 +151,8 @@ where
 {
     /// Create a new L-BFGS instance with a specific problem and L-BFGS buffer size
     pub fn new(problem_size: usize, buffer_size: usize) -> Lbfgs<T> {
-        assert!(problem_size > 0);
-        assert!(buffer_size > 0);
+        debug_assert!(problem_size > 0);
+        debug_assert!(buffer_size > 0);
 
         Lbfgs {
             active_size: 0,
@@ -172,7 +172,7 @@ where
 
     /// Update the default C-BFGS alpha
     pub fn with_cbfgs_alpha(mut self, alpha: T) -> Self {
-        assert!(alpha >= T::zero(), "Negative alpha");
+        debug_assert!(alpha >= T::zero(), "Negative alpha");
 
         self.cbfgs_alpha = alpha;
         self
@@ -180,7 +180,7 @@ where
 
     /// Update the default C-BFGS epsilon
     pub fn with_cbfgs_epsilon(mut self, epsilon: T) -> Self {
-        assert!(epsilon >= T::zero(), "sy_epsilon must be non-negative");
+        debug_assert!(epsilon >= T::zero(), "sy_epsilon must be non-negative");
 
         self.cbfgs_epsilon = epsilon;
         self
@@ -188,7 +188,7 @@ where
 
     /// Update the default sy_epsilon
     pub fn with_sy_epsilon(mut self, sy_epsilon: T) -> Self {
-        assert!(sy_epsilon >= T::zero(), "sy_epsilon must be non-negative");
+        debug_assert!(sy_epsilon >= T::zero(), "sy_epsilon must be non-negative");
 
         self.sy_epsilon = sy_epsilon;
         self
@@ -204,7 +204,7 @@ where
 
     /// Apply the current Hessian estimate to an input vector
     pub fn apply_hessian(&mut self, g: &mut [T]) {
-        assert!(g.len() == self.old_g.len());
+        debug_assert!(g.len() == self.old_g.len());
 
         if self.active_size == 0 {
             // No Hessian available, the g is the best we can do for now
@@ -283,8 +283,8 @@ where
 
     /// Saves vectors to update the Hessian estimate
     pub fn update_hessian(&mut self, g: &[T], state: &[T]) -> UpdateStatus {
-        assert!(g.len() == self.old_state.len());
-        assert!(state.len() == self.old_state.len());
+        debug_assert!(g.len() == self.old_state.len());
+        debug_assert!(state.len() == self.old_state.len());
 
         // First iteration, only save
         if self.first_old {

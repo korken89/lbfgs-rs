@@ -61,8 +61,8 @@ pub fn difference_and_save<T>(out: &mut [T], a: &[T], b: &[T])
 where
     T: Float,
 {
-    assert!(a.len() == b.len());
-    assert!(out.len() == a.len());
+    debug_assert!(a.len() == b.len());
+    debug_assert!(out.len() == a.len());
 
     out.iter_mut()
         .zip(a.iter().zip(b.iter()))
@@ -84,7 +84,7 @@ pub fn inplace_vec_add<T>(out: &mut [T], a: &[T], s: T)
 where
     T: Float,
 {
-    assert!(out.len() == a.len());
+    debug_assert!(out.len() == a.len());
 
     out.iter_mut()
         .zip(a.iter())
