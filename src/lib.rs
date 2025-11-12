@@ -196,7 +196,7 @@ where
 
     /// "Empties" the buffer
     ///
-    /// This is a cheap operation as it amount to setting certain internal flags
+    /// This is a cheap operation as it amounts to setting certain internal flags
     pub fn reset(&mut self) {
         self.active_size = 0;
         self.first_old = true;
