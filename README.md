@@ -1,7 +1,7 @@
 # `L-BFGS` 
 
 <a href="https://github.com/korken89/lbfgs-rs/actions?query=branch%3Amaster">
-    <img alt="GHA continuous integration" src="https://github.com/korken89/lbfgs-rs/workflows/Continuous%20integration/badge.svg">
+    <img alt="GHA continuous integration" src="https://github.com/korken89/lbfgs-rs/actions/workflows/rust_unit_tests.yml/badge.svg">
 </a>
 
 `L-BFGS` ([Low-memory Broyden–Fletcher–Goldfarb–Shanno](https://en.wikipedia.org/wiki/Limited-memory_BFGS)) is a library for doing
