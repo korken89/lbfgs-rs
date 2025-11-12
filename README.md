@@ -53,6 +53,43 @@ lbfgs.apply_hessian(&mut g);
 
 Note that this will update `g` in-place.
 
+### Details
+
+You can use either `f64` of `f32` num types.
+If you write 
+`Lbfgs::new(problem_size, lbfgs_memory_size)`, 
+`f64` is implied.
+
+The first direction provided is always accepted, but 
+subsequent directions can be rejected either because 
+the CBFGS condition is not satisfied or because the 
+curvature condition is not satisfied.
+Here is an example:
+
+```rust
+// Starting value is always accepted (no s or y vectors yet)
+assert_eq!(
+    lbfgs.update_hessian(&[0.0, 0.0, 0.0], &[0.0, 0.0, 0.0]),
+    UpdateStatus::UpdateOk
+);
+
+// Rejected because of CBFGS condition
+assert_eq!(
+    lbfgs.update_hessian(&[-0.838, 0.260, 0.479], &[-0.5, 0.6, -1.2]),
+    UpdateStatus::Rejection
+);
+
+// This will fail because y'*s == 0 (curvature condition)
+assert_eq!(
+    lbfgs.update_hessian(
+        &[-0.5, 0.6, -1.2],
+        &[0.419058177461747, 0.869843029576958, 0.260313940846084]
+    ),
+    UpdateStatus::Rejection
+);
+```
+
+
 ## License
 
 Licensed under either of
