@@ -6,11 +6,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
-## [v0.3.0-alpha.1] - 2025-05-22
+## [v0.3.0-alpha.1] - 2025-11-13
 
 ### Changed
 
-- Updated versions of dependencies
+- Support for `f64` and `f32`
 
 ## [v0.2.2] - 2025-05-22
 
