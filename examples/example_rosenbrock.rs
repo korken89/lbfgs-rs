@@ -5,10 +5,10 @@ use lbfgs::{
 
 
 // Constants for Wolfe Conditions
-const WOLFE_C1: f64 = 1e-4; // Armijo constant
-const WOLFE_C2: f64 = 0.9; // Curvature constant
-const MAX_LS_STEPS: u32 = 10; // max LS steps
-const ALPHA_MAX: f64 = 1.0; // Max initial step size
+const WOLFE_C1: f64 = 1e-5; // Armijo constant
+const WOLFE_C2: f64 = 0.99; // Curvature constant
+const MAX_LS_STEPS: u32 = 15; // max LS steps
+const ALPHA_MAX: f64 = 0.9995; // Max initial step size
 const ALPHA_MIN: f64 = 1e-12; // Mix alpha
 const LS_BETA: f64 = 0.5; // Step size reduction factor
 
@@ -42,7 +42,7 @@ fn directional_derivative(grad: &[f64], search_dir: &[f64]) -> f64 {
 pub fn compute_x_alpha_d(x: &[f64], d: &[f64], alpha: f64) -> Vec<f64> {
     x.iter()
         .zip(d.iter())
-        .map(|(xi, di)| xi - alpha * di)
+        .map(|(xi, di)| xi + alpha * di)
         .collect()
 }
 
@@ -111,10 +111,10 @@ fn wolfe_line_search(x: &[f64], d: &[f64], fx_0: f64, grad_0: &[f64]) -> f64 {
 fn main() {
     // Problem Configuration
     let problem_size = 2; // x is a 2D vector
-    let lbfgs_memory_size = 5;
+    let lbfgs_memory_size = 10;
     let max_iterations = 100;
     let tolerance = 1e-6;
-    let mut x: Vec<f64> = vec![-0.5, 1.0]; // Initial guess
+    let mut x: Vec<f64> = vec![-0.9, 1.5]; // Initial guess
 
     let mut lbfgs = Lbfgs::new(problem_size, lbfgs_memory_size);
     let (mut fx, mut grad) = f_and_df(&x);
@@ -127,14 +127,15 @@ fn main() {
         }
         let mut search_dir = grad.clone();
         lbfgs.apply_hessian(&mut search_dir); 
-        let alpha = wolfe_line_search(&x, &search_dir, fx, &grad);
+        let d: Vec<f64> = search_dir.iter().map(|v| -v).collect();
+        let mut alpha = wolfe_line_search(&x, &d, fx, &grad);
         if alpha <= ALPHA_MIN {
-            println!("\nLine search stalled (alpha < {})", ALPHA_MIN);
-            break;
+            println!("\nLine search stalled (alpha < {:.2e})", ALPHA_MIN);
+            alpha = 1e-3;
         }
         let mut x_new = vec![0.0; problem_size];
         for i in 0..problem_size {
-            x_new[i] = x[i] - alpha * search_dir[i];
+            x_new[i] = x[i] + alpha * d[i];
         }
 
         let (fx_new, grad_new) = f_and_df(&x_new);
@@ -154,6 +155,5 @@ fn main() {
         }
     }
 
-    println!("x* = [x0: {:.5}, x1: {:.5}]", x[0], x[1]);
-    println!("f* = {:.6e}", fx);
+    println!("x* = {:.3?}", x);
 }
