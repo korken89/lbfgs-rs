@@ -1,18 +1,4 @@
 //! # lbfgs
-//!
-//! The `L-BFGS` is an Hessian approximation algorithm commonly used by optimization algorithms in
-//! the family of quasi-Newton methods that approximates the Broyden–Fletcher–Goldfarb–Shanno (BFGS)
-//! algorithm using a limited amount of computer memory. In this implementation extra condition are
-//! added to have convergence properties for non-convex problems, based on the [C-BFGS conditions],
-//! together with basic checks on the local curvature.
-//!
-//! [C-BFGS conditions]: https://pdfs.semanticscholar.org/5b90/45b7d27a53b1e3c3b3f0dc6aab908cc3e0b2.pdf
-//!
-//! # Example
-//!
-//! Create a fully featured instance of the L-BFGS algorithm with curvature and C-BFGS checks
-//! enabled.
-//!
 //! ```
 //! use lbfgs::*;
 //!
@@ -22,7 +8,7 @@
 //!     let lbfgs_memory_size = 5;
 //!
 //!     // Create the L-BFGS instance with curvature and C-BFGS checks enabled
-//!     let mut lbfgs = Lbfgs::new(problem_size, lbfgs_memory_size)
+//!     let mut lbfgs = Lbfgs::<f64>::new(problem_size, lbfgs_memory_size)
 //!         .with_sy_epsilon(1e-8)     // L-BFGS acceptance condition on s'*y > sy_espsilon
 //!         .with_cbfgs_alpha(1.0)     // C-BFGS condition:
 //!         .with_cbfgs_epsilon(1e-4); // y'*s/||s||^2 > epsilon * ||grad(x)||^alpha
@@ -79,13 +65,35 @@
 //! as the `problem_size`.
 //!
 
+use num_traits::Float;
+
 pub mod vec_ops;
 
 #[cfg(test)]
 mod tests;
 
-/// The default `sy_epsilon`
-pub const DEFAULT_SY_EPSILON: f64 = 1e-10;
+/// Precision is a trait extending `num_traits::Float` to provide type-specific constants
+/// (the default sy tolerance).
+pub trait LbfgsPrecision: Float {
+    /// Default s-y tolerance for L-BFGS updates
+    const DEFAULT_SY_TOLERANCE: Self;
+    /// Absolute tolerance (e.g., for unit tests)
+    const ABS_TOL: Self;
+    /// Relative tolerance (e.g., for unit tests)
+    const REL_TOL: Self;
+}
+
+impl LbfgsPrecision for f64 {
+    const DEFAULT_SY_TOLERANCE: f64 = 1e-10;
+    const ABS_TOL: f64 = 1e-8;
+    const REL_TOL: f64 = 1e-10;
+}
+
+impl LbfgsPrecision for f32 {
+    const DEFAULT_SY_TOLERANCE: f32 = 1e-8;
+    const ABS_TOL: f32 = 1e-5;
+    const REL_TOL: f32 = 1e-5;
+}
 
 /// LBFGS Buffer
 ///
@@ -98,30 +106,33 @@ pub const DEFAULT_SY_EPSILON: f64 = 1e-10;
 ///
 ///
 #[derive(Debug)]
-pub struct Lbfgs {
+pub struct Lbfgs<T = f64>
+where
+    T: LbfgsPrecision + std::iter::Sum<T>,
+{
     /// The number of vectors in s and y that are currently in use
     active_size: usize,
     /// Used to warm-start the Hessian estimation with H_0 = gamma * I
-    gamma: f64,
+    gamma: T,
     /// s holds the vectors of state difference s_k = x_{k+1} - x_k, s_0 holds the most recent s
-    s: Vec<Vec<f64>>,
+    s: Vec<Vec<T>>,
     /// y holds the vectors of the function g (usually cost function gradient) difference:
     /// y_k = g_{k+1} - g_k, y_0 holds the most recent y
-    y: Vec<Vec<f64>>,
+    y: Vec<Vec<T>>,
     /// Intermediary storage for the forward L-BFGS pass
-    alpha: Vec<f64>,
+    alpha: Vec<T>,
     /// Intermediary storage for the forward L-BFGS pass
-    rho: Vec<f64>,
+    rho: Vec<T>,
     /// The alpha parameter of the C-BFGS criterion
-    cbfgs_alpha: f64,
+    cbfgs_alpha: T,
     /// The epsilon parameter of the C-BFGS criterion
-    cbfgs_epsilon: f64,
+    cbfgs_epsilon: T,
     /// Limit on the inner product s'*y for acceptance in the buffer
-    sy_epsilon: f64,
+    sy_epsilon: T,
     /// Holds the state of the last `update_hessian`, used to calculate the `s_k` vectors
-    old_state: Vec<f64>,
+    old_state: Vec<T>,
     /// Holds the g of the last `update_hessian`, used to calculate the `y_k` vectors
-    old_g: Vec<f64>,
+    old_g: Vec<T>,
     /// Check to see if the `old_*` variables have valid data
     first_old: bool,
 }
@@ -134,47 +145,50 @@ pub enum UpdateStatus {
     Rejection,
 }
 
-impl Lbfgs {
+impl<T> Lbfgs<T>
+where
+    T: LbfgsPrecision + std::iter::Sum<T>,
+{
     /// Create a new L-BFGS instance with a specific problem and L-BFGS buffer size
-    pub fn new(problem_size: usize, buffer_size: usize) -> Lbfgs {
-        assert!(problem_size > 0);
-        assert!(buffer_size > 0);
+    pub fn new(problem_size: usize, buffer_size: usize) -> Lbfgs<T> {
+        debug_assert!(problem_size > 0);
+        debug_assert!(buffer_size > 0);
 
         Lbfgs {
             active_size: 0,
-            gamma: 1.0,
-            s: vec![vec![0.0; problem_size]; buffer_size + 1], // +1 for the temporary checking area
-            y: vec![vec![0.0; problem_size]; buffer_size + 1], // +1 for the temporary checking area
-            alpha: vec![0.0; buffer_size],
-            rho: vec![0.0; buffer_size + 1],
-            cbfgs_alpha: 0.0,
-            cbfgs_epsilon: 0.0,
-            sy_epsilon: DEFAULT_SY_EPSILON,
-            old_state: vec![0.0; problem_size],
-            old_g: vec![0.0; problem_size],
+            gamma: T::one(),
+            s: vec![vec![T::zero(); problem_size]; buffer_size + 1], // +1 for the temporary checking area
+            y: vec![vec![T::zero(); problem_size]; buffer_size + 1], // +1 for the temporary checking area
+            alpha: vec![T::zero(); buffer_size],
+            rho: vec![T::zero(); buffer_size + 1],
+            cbfgs_alpha: T::zero(),
+            cbfgs_epsilon: T::zero(),
+            sy_epsilon: T::DEFAULT_SY_TOLERANCE,
+            old_state: vec![T::zero(); problem_size],
+            old_g: vec![T::zero(); problem_size],
             first_old: true,
         }
     }
 
     /// Update the default C-BFGS alpha
-    pub fn with_cbfgs_alpha(mut self, alpha: f64) -> Self {
-        assert!(alpha >= 0.0, "Negative alpha");
+    pub fn with_cbfgs_alpha(mut self, alpha: T) -> Self {
+        debug_assert!(alpha >= T::zero(), "Negative alpha");
 
         self.cbfgs_alpha = alpha;
         self
     }
 
     /// Update the default C-BFGS epsilon
-    pub fn with_cbfgs_epsilon(mut self, epsilon: f64) -> Self {
-        assert!(epsilon >= 0.0);
+    pub fn with_cbfgs_epsilon(mut self, epsilon: T) -> Self {
+        debug_assert!(epsilon >= T::zero(), "sy_epsilon must be non-negative");
 
         self.cbfgs_epsilon = epsilon;
         self
     }
 
     /// Update the default sy_epsilon
-    pub fn with_sy_epsilon(mut self, sy_epsilon: f64) -> Self {
-        assert!(sy_epsilon >= 0.0);
+    pub fn with_sy_epsilon(mut self, sy_epsilon: T) -> Self {
+        debug_assert!(sy_epsilon >= T::zero(), "sy_epsilon must be non-negative");
 
         self.sy_epsilon = sy_epsilon;
         self
@@ -182,15 +196,15 @@ impl Lbfgs {
 
     /// "Empties" the buffer
     ///
-    /// This is a cheap operation as it amount to setting certain internal flags
+    /// This is a cheap operation as it amounts to setting certain internal flags
     pub fn reset(&mut self) {
         self.active_size = 0;
         self.first_old = true;
     }
 
     /// Apply the current Hessian estimate to an input vector
-    pub fn apply_hessian(&mut self, g: &mut [f64]) {
-        assert!(g.len() == self.old_g.len());
+    pub fn apply_hessian(&mut self, g: &mut [T]) {
+        debug_assert!(g.len() == self.old_g.len());
 
         if self.active_size == 0 {
             // No Hessian available, the g is the best we can do for now
@@ -209,7 +223,7 @@ impl Lbfgs {
             .iter()
             .zip(active_y.iter().zip(rho.iter().zip(alpha.iter_mut())))
         {
-            let a = rho_k * vec_ops::inner_product(s_k, q);
+            let a = *rho_k * vec_ops::inner_product(s_k, q);
 
             *alpha_k = a;
 
@@ -226,9 +240,9 @@ impl Lbfgs {
             .zip(active_y.iter().zip(rho.iter().zip(alpha.iter())))
             .rev()
         {
-            let beta = rho_k * vec_ops::inner_product(y_k, r);
+            let beta = *rho_k * vec_ops::inner_product(y_k, r);
 
-            vec_ops::inplace_vec_add(r, s_k, alpha_k - beta);
+            vec_ops::inplace_vec_add(r, s_k, *alpha_k - beta);
         }
 
         // The g with the Hessian applied is available in the input g
@@ -238,22 +252,22 @@ impl Lbfgs {
     /// Check the validity of the newly added s and y vectors. Based on the condition in:
     /// D.-H. Li and M. Fukushima, "On the global convergence of the BFGS method for nonconvex
     /// unconstrained optimization problems," vol. 11, no. 4, pp. 1054–1064, jan 2001.
-    fn new_s_and_y_valid(&mut self, g: &[f64]) -> bool {
+    fn new_s_and_y_valid(&mut self, g: &[T]) -> bool {
         let s = self.s.last().unwrap();
         let y = self.y.last().unwrap();
         let rho = self.rho.last_mut().unwrap();
         let ys = vec_ops::inner_product(s, y);
         let norm_s_squared = vec_ops::inner_product(s, s);
 
-        *rho = 1.0 / ys;
+        *rho = T::one() / ys;
 
-        if norm_s_squared <= std::f64::MIN_POSITIVE
-            || (self.sy_epsilon > 0.0 && ys <= self.sy_epsilon)
+        if norm_s_squared <= T::min_positive_value()
+            || (self.sy_epsilon > T::zero() && ys <= self.sy_epsilon)
         {
             // In classic L-BFGS, the buffer should be updated only if
             // y'*s is strictly positive and |s| is nonzero
             false
-        } else if self.cbfgs_epsilon > 0.0 && self.cbfgs_alpha > 0.0 {
+        } else if self.cbfgs_epsilon > T::zero() && self.cbfgs_alpha > T::zero() {
             // Check the CBFGS condition of Li and Fukushima
             // Condition: (y^T * s) / ||s||^2 > epsilon * ||grad(x)||^alpha
             let lhs_cbfgs = ys / norm_s_squared;
@@ -268,9 +282,9 @@ impl Lbfgs {
     }
 
     /// Saves vectors to update the Hessian estimate
-    pub fn update_hessian(&mut self, g: &[f64], state: &[f64]) -> UpdateStatus {
-        assert!(g.len() == self.old_state.len());
-        assert!(state.len() == self.old_state.len());
+    pub fn update_hessian(&mut self, g: &[T], state: &[T]) -> UpdateStatus {
+        debug_assert!(g.len() == self.old_state.len());
+        debug_assert!(state.len() == self.old_state.len());
 
         // First iteration, only save
         if self.first_old {
@@ -302,7 +316,7 @@ impl Lbfgs {
         self.rho.rotate_right(1);
 
         // Update the Hessian estimate
-        self.gamma = (1.0 / self.rho[0]) / vec_ops::inner_product(&self.y[0], &self.y[0]);
+        self.gamma = (T::one() / self.rho[0]) / vec_ops::inner_product(&self.y[0], &self.y[0]);
 
         // Update the indexes and number of active, -1 comes from the temporary area used in
         // the end of s and y to check if they are valid

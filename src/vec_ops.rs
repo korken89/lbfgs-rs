@@ -13,7 +13,7 @@ pub fn inner_product<T>(a: &[T], b: &[T]) -> T
 where
     T: Float + Sum<T> + Mul<T, Output = T>,
 {
-    debug_assert!(a.len() == b.len());
+    assert!(a.len() == b.len());
 
     a.iter().zip(b.iter()).map(|(x, y)| (*x) * (*y)).sum()
 }
