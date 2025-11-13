@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
-## [v0.3.0-alpha.1] - 2025-11-13
+## [v0.3.0] - 2025-11-13
 
 ### Changed
 
@@ -41,6 +41,7 @@ This is a breaking API change.
 
 First release.
 
+[v0.3.0]: https://github.com/korken89/lbfgs-rs/compare/v0.2.2...v0.3.0
 [v0.2.2]: https://github.com/korken89/lbfgs-rs/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/korken89/lbfgs-rs/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/korken89/lbfgs-rs/compare/v0.1.1...v0.2.0
