@@ -12,6 +12,7 @@ const LS_BETA: f64 = 0.5; // Step size reduction factor
 const DEFAULT_TOLERANCE: f64 = 1e-6;
 const DEFAULT_MAX_ITERATIONS: usize = 100;
 
+/// Solver status
 #[derive(Debug, PartialEq)]
 pub enum LbfgsSolverStatus {
     Converged,
@@ -28,16 +29,29 @@ pub fn xpad(out: &mut [f64], x: &[f64], alpha: f64, d: &[f64]) {
         .for_each(|((out, xi), di)| *out = (*xi) + alpha * (*di));
 }
 
+/// LBFGS Solver with line search satisfying the strong Wolfe conditions
+/// 
+/// The cost function and its gradient are specified via a closure/function of the form 
+/// `Fn(&[f64], &mut [f64]) -> f64`. The first argument is the input vector `x`,
+/// the second argument is a mutable slice where the gradient `∇f(x)` will be stored,
+/// and the return value is the function value `f(x)`.
+/// 
+/// 
 struct LbfgsSolver<FunctionT>
 where
      FunctionT: Fn(&[f64], &mut [f64]) -> f64,
 {
+    /// Cost function with its gradient
     func: FunctionT,
+    /// Tolerance for the termination condition |∇f(x)| ≤ tolerance
     tolerance: f64,
+    /// Maximum number of iterations
     max_iterations: usize,
+    /// LBFGS instance
     lbfgs: Lbfgs<f64>,
+    /// Whether to print details while solving
     verbose: bool,
-    // -- Workspace
+    // -- Workspace -------------------------------
     d: Vec<f64>,
     x_ws_1: Vec<f64>,
     x_ws_2: Vec<f64>,
@@ -51,6 +65,19 @@ impl<FunctionT> LbfgsSolver<FunctionT>
 where
     FunctionT: Fn(&[f64], &mut [f64]) -> f64,
 {
+
+    /// Creates a new LBFGS solver instance
+    /// 
+    /// # Arguments
+    /// 
+    /// * `func` - The cost function with its gradient
+    /// * `n` - The problem size (number of variables)
+    /// * `lbfgs_memory` - The LBFGS memory size
+    ///
+    /// # Returns
+    /// 
+    /// A new `LbfgsSolver` instance
+    /// 
     pub fn new(func: FunctionT, n: usize, lbfgs_memory: usize) -> Self {
         let lbfgs = Lbfgs::<f64>::new(n, lbfgs_memory);
         LbfgsSolver {
@@ -70,18 +97,22 @@ where
         }
     }
 
+    /// Sets the tolerance for the termination condition |∇f(x)| ≤ tolerance
     pub fn set_tolerance(&mut self, tol: f64) {
         self.tolerance = tol;
     }
 
+    /// Sets the maximum number of iterations
     pub fn set_max_iterations(&mut self, max_iter: usize) {
         self.max_iterations = max_iter;
     }
 
+    /// Sets whether to print details while solving
     pub fn set_verbose(&mut self, verbose: bool) {
         self.verbose = verbose;
     }
 
+    /// Zoom algorithm (internal)
     fn zoom(
         &mut self,
         x: &[f64],
@@ -115,6 +146,7 @@ where
         Err(LbfgsSolverStatus::ZoomIterationsExceeded)
     }
 
+    /// Line search (internal)
     fn wolfe_line_search(
         &mut self,
         x: &[f64],
@@ -154,6 +186,14 @@ where
         Err(LbfgsSolverStatus::LineSearchIterationsExceeded)
     }
 
+    /// Solves the optimization problem starting from initial guess x
+    /// 
+    /// # Arguments
+    /// * `x` - Initial guess (will be modified to contain the solution)
+    /// 
+    /// # Returns
+    /// * `LbfgsSolverStatus` - The status of the solver after completion
+    ///
     pub fn solve(&mut self, x: &mut Vec<f64>) -> LbfgsSolverStatus {
         self.lbfgs.reset();
         let mut fx = (self.func)(&x, &mut self.grad);        
@@ -198,7 +238,7 @@ where
 }
 
 // The user provides an implementaiton of f(x) and ∇f(x)
-// in a single function
+// in a single function; this is the Rosenbrock function
 fn f_and_df(x: &[f64], g: &mut [f64]) -> f64 {
     let x0 = x[0];
     let x1 = x[1];
