@@ -1,6 +1,5 @@
 use lbfgs::{
-    vec_ops::{inner_product, norm2},
-    Lbfgs, UpdateStatus,
+    Lbfgs, UpdateStatus, vec_ops::{inner_product, norm2, scalar_mult}
 };
 
 // Constants for Wolfe Conditions
@@ -21,6 +20,7 @@ pub enum LbfgsSolverStatus {
     MaximumIterationsExceeded,
 }
 
+// Computes out = x + alpha * d
 pub fn xpad(out: &mut [f64], x: &[f64], alpha: f64, d: &[f64]) {
     out.iter_mut()
         .zip(x.iter())
@@ -28,25 +28,17 @@ pub fn xpad(out: &mut [f64], x: &[f64], alpha: f64, d: &[f64]) {
         .for_each(|((out, xi), di)| *out = (*xi) + alpha * (*di));
 }
 
-/// Compute x + alpha*d
-pub fn compute_x_alpha_d(x: &[f64], d: &[f64], alpha: f64) -> Vec<f64> {
-    x.iter()
-        .zip(d.iter())
-        .map(|(xi, di)| xi + alpha * di)
-        .collect()
-}
-
 struct LbfgsSolver<FunctionT>
 where
      FunctionT: Fn(&[f64], &mut [f64]) -> f64,
 {
     func: FunctionT,
-    n: usize,
     tolerance: f64,
     max_iterations: usize,
     lbfgs: Lbfgs<f64>,
     verbose: bool,
     // -- Workspace
+    d: Vec<f64>,
     x_ws_1: Vec<f64>,
     x_ws_2: Vec<f64>,
     x_new: Vec<f64>,
@@ -63,12 +55,12 @@ where
         let lbfgs = Lbfgs::<f64>::new(n, lbfgs_memory);
         LbfgsSolver {
             func,
-            n,
             tolerance: DEFAULT_TOLERANCE,
             max_iterations: DEFAULT_MAX_ITERATIONS,
             lbfgs,
             verbose: false,
             // WS
+            d: vec![0.0; n],
             x_ws_1: vec![0.0; n],
             x_ws_2: vec![0.0; n],
             x_new: vec![0.0; n],
@@ -93,7 +85,6 @@ where
     fn zoom(
         &mut self,
         x: &[f64],
-        d: &[f64],
         fx_0: f64,
         phi_prime_0: f64,
         mut alpha_low: f64,
@@ -102,11 +93,11 @@ where
         
         for _ in 0..MAX_LS_STEPS {
             let alpha_j = (alpha_low + alpha_high) / 2.0;
-            xpad(&mut self.x_ws_1, x, alpha_j, d);
+            xpad(&mut self.x_ws_1, x, alpha_j, &self.d);
 
             let fx_j  = (self.func)(&self.x_ws_1, &mut self.grad);
-            let phi_prime_j = inner_product(&self.grad, d); // ∇f(x_j)·d
-            xpad(&mut self.x_ws_2, x, alpha_low, d);
+            let phi_prime_j = inner_product(&self.grad, &self.d); // ∇f(x_j)·d
+            xpad(&mut self.x_ws_2, x, alpha_low, &self.d);
             if fx_j > fx_0 + WOLFE_C1 * alpha_j * phi_prime_0
                 || fx_j >= (self.func)(&self.x_ws_2, &mut self.grad)
             {
@@ -127,21 +118,22 @@ where
     fn wolfe_line_search(
         &mut self,
         x: &[f64],
-        d: &[f64],
         fx_0: f64,
     ) -> Result<f64, LbfgsSolverStatus> {
-        let phi_prime_0 = inner_product(&self.grad, d); // ∇f(x)·d
+        self.d.copy_from_slice(&self.search_dir);
+        scalar_mult(&mut self.d, -1.0); 
+
+        let phi_prime_0 = inner_product(&self.grad, &self.d); // ∇f(x)·d
         let mut alpha_prev = 0.0;
         let mut fx_prev = fx_0;
         let mut alpha_i = ALPHA_MAX;
-        let mut x_i = vec![0.0; self.n];
 
         for i in 0..MAX_LS_STEPS {
-            xpad(&mut x_i, x, alpha_i, d);
-            let fx_i = (self.func)(&x_i, &mut self.grad);
-            let phi_prime_i = inner_product(&self.grad, d); // ∇f(x_i)·d
+            xpad(&mut self.x_ws_1, x, alpha_i, &self.d);
+            let fx_i = (self.func)(&self.x_ws_1, &mut self.grad);
+            let phi_prime_i = inner_product(&self.grad, &self.d); // ∇f(x_i)·d
             if fx_i > fx_0 + WOLFE_C1 * alpha_i * phi_prime_0 || (i > 0 && fx_i >= fx_prev) {
-                return self.zoom(x, d, fx_0, phi_prime_0, alpha_prev, alpha_i);
+                return self.zoom(x, fx_0, phi_prime_0, alpha_prev, alpha_i);
             }
 
             // Strong Wolfe condition: |∇f(x_i)·d| <= c2 * |∇f(x)·d|
@@ -152,7 +144,7 @@ where
             if phi_prime_i >= 0.0 {
                 let alpha_low = alpha_i.min(alpha_prev);
                 let alpha_high = alpha_i.max(alpha_prev);
-                return self.zoom(x, d, fx_0, phi_prime_0, alpha_low, alpha_high);
+                return self.zoom(x, fx_0, phi_prime_0, alpha_low, alpha_high);
             }
             alpha_prev = alpha_i;
             fx_prev = fx_i;
@@ -175,13 +167,10 @@ where
             }
             self.search_dir.copy_from_slice(&self.grad);
             self.lbfgs.apply_hessian(&mut self.search_dir); // search_dir = H * grad
-
-            let d: Vec<f64> = self.search_dir.iter().map(|v| -v).collect();
             let alpha = self
-                .wolfe_line_search(&x, &d, fx)
+                .wolfe_line_search(&x, fx)
                 .unwrap_or(ALPHA_MIN);
-            xpad(&mut self.x_new, x, alpha, &d);
-
+            xpad(&mut self.x_new, x, alpha, &self.d);
             let fx_new = (self.func)(&self.x_new, &mut self.grad_plus);
             let update_status = self.lbfgs.update_hessian(&self.grad_plus, &self.x_new);
 
@@ -201,7 +190,6 @@ where
             }
 
             if k + 1 == self.max_iterations {
-                println!("Max iterations reached.");
                 return LbfgsSolverStatus::MaximumIterationsExceeded;
             }
         }
